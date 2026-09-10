@@ -1,6 +1,6 @@
 // src/App.tsx
 import { useMemo, useState } from "react";
-import { AlertCircle, AlertTriangle, Archive, ArrowLeftRight, Boxes, OctagonAlert } from "lucide-react";
+import { AlertCircle, AlertTriangle, Archive, ArrowLeft, ArrowLeftRight, Boxes, OctagonAlert, Printer } from "lucide-react";
 
 import type { CatalogueView, Thresholds } from "./types";
 import { DEFAULT_THRESHOLDS, VIEW_LABEL_NAME } from "./types";
@@ -16,6 +16,7 @@ import KpiCard from "./components/KpiCard";
 import SettingsBar from "./components/SettingsBar";
 import AlertTable from "./components/AlertTable";
 import DetailTable from "./components/DetailTable";
+import ReportDocument from "./components/ReportDocument";
 
 const VIEW_LABEL: Record<CatalogueView, string> = {
   combined: "Combined",
@@ -30,6 +31,7 @@ export default function StockDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [thresholds, setThresholds] = useState<Thresholds>(DEFAULT_THRESHOLDS);
   const [view, setView] = useState<CatalogueView>("combined");
+  const [reportOpen, setReportOpen] = useState(false);
 
   const handleFile = async (file: File | undefined, target: 1 | 2) => {
     if (!file) return;
@@ -182,6 +184,7 @@ export default function StockDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <div className={reportOpen ? "hidden print:hidden" : "print:hidden"}>
       {/* Top bar */}
       <header className="border-b border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-4">
@@ -199,6 +202,13 @@ export default function StockDashboard() {
               <div className="flex items-center gap-2">
                 <FileChip id="file1-chip" region="proper" accept=".csv" rowCount={source1Data.length} onFile={(f) => handleFile(f, 1)} />
                 <FileChip id="file2-chip" region="amped" accept=".xlsx,.xls" rowCount={source2Data.length} onFile={(f) => handleFile(f, 2)} />
+                <button
+                  onClick={() => setReportOpen(true)}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  title="Generate a standalone report to print or save as PDF"
+                >
+                  <Printer className="w-3.5 h-3.5" /> Generate report
+                </button>
               </div>
             )}
           </div>
@@ -344,6 +354,47 @@ export default function StockDashboard() {
           </div>
         )}
       </main>
+      </div>
+
+      {reportOpen && (
+        <div className="print:hidden sticky top-0 z-30 bg-slate-900 text-white px-6 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-sm">
+            <Printer className="w-4 h-4" />
+            Report preview — use your browser's print dialog and choose "Save as PDF" to download it.
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-white text-slate-900 text-xs font-semibold hover:bg-slate-100"
+            >
+              <Printer className="w-3.5 h-3.5" /> Print / Save as PDF
+            </button>
+            <button
+              onClick={() => setReportOpen(false)}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-white/30 text-xs font-medium hover:bg-white/10"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to dashboard
+            </button>
+          </div>
+        </div>
+      )}
+
+      {hasResult && (
+        <ReportDocument
+          visible={reportOpen}
+          view={view}
+          generatedAt={new Date()}
+          thresholds={thresholds}
+          allRows={viewRows}
+          repressRows={repressRows}
+          rebalanceRows={rebalanceRows}
+          overstockRows={overstockRows}
+          dormantRows={dormantRows}
+          properFileName={properFileName}
+          properRowCount={source1Data.length}
+          ampedRowCount={source2Data.length}
+        />
+      )}
     </div>
   );
 }

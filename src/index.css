@@ -1,3 +1,18 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+  /* Force status colors/backgrounds to render regardless of the browser's
+     "background graphics" print setting — otherwise badges and the health
+     bar print as invisible/white. */
+  .print-report,
+  .print-report * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
