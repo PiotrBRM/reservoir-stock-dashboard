@@ -68,11 +68,24 @@ export default function ReleaseDetailPanel({ row, thresholds }: { row: Consolida
         </div>
         <div className="rounded-lg border border-amped/20 bg-white p-3">
           <RegionTag region="amped" compact />
-          <div className="mt-1.5 text-xl font-semibold text-slate-900">{formatNumber(row.ampedStock)}</div>
-          <div className="text-xs text-slate-400">units in stock</div>
-          <CoverMeter months={row.ampedMonthsOfCover} status={row.ampedStatus} thresholds={thresholds} className="mt-2" />
-          {row.ampedOnOrder > 0 && (
-            <div className="text-xs text-slate-500 mt-1.5">+{formatNumber(row.ampedOnOrder)} on order</div>
+          {row.ampedMatched ? (
+            <>
+              <div className="mt-1.5 text-xl font-semibold text-slate-900">{formatNumber(row.ampedStock)}</div>
+              <div className="text-xs text-slate-400">units in stock</div>
+              <CoverMeter
+                months={row.ampedMonthsOfCover}
+                status={row.ampedStatus}
+                thresholds={thresholds}
+                className="mt-2"
+              />
+              {row.ampedOnOrder > 0 && (
+                <div className="text-xs text-slate-500 mt-1.5">+{formatNumber(row.ampedOnOrder)} on order</div>
+              )}
+            </>
+          ) : (
+            <div className="mt-1.5 text-xs text-slate-400 italic leading-relaxed">
+              No matching AMPED record found — likely not distributed in North America, rather than confirmed at 0.
+            </div>
           )}
         </div>
         <div className="rounded-lg border border-slate-200 bg-white p-3">

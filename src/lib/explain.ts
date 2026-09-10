@@ -59,13 +59,19 @@ export function explainRow(r: ConsolidatedRow, t: Thresholds): Explanation {
       )} units in stock cover roughly ${cover} months — comfortably inside your ${t.lowMonths}–${t.highMonths} month target window.`;
   }
 
+  const isRepress = recommendation.startsWith("Repress");
+
   if (r.regionFlag) {
     const [from, to] = r.regionFlag === "shift_to_amped" ? ["Proper", "AMPED"] : ["AMPED", "Proper"];
     const transferNote = ` ${from} is sitting on more cover than ${to} needs — moving ~${formatNumber(
       r.suggestedTransferQty || 0
-    )} units from ${from} to ${to} may cover this without pressing anything new.`;
+    )} units from ${from} to ${to} would relieve that faster than waiting on a repress.`;
     reasoning += transferNote;
-    if (recommendation.startsWith("No repress needed") || recommendation.startsWith("No action")) {
+    if (isRepress) {
+      // A transfer reallocates existing stock between warehouses — it doesn't add
+      // units to the combined total, so it can't reduce the repress figure above.
+      reasoning += ` That's a reallocation of stock you already have though, not new stock — the repress number above still stands regardless.`;
+    } else if (recommendation.startsWith("No repress needed") || recommendation.startsWith("No action")) {
       recommendation = `Move ~${formatNumber(r.suggestedTransferQty || 0)} units: ${from} → ${to}`;
     }
   }
@@ -74,7 +80,9 @@ export function explainRow(r: ConsolidatedRow, t: Thresholds): Explanation {
   if (r.properOnOrder > 0) onOrderNotes.push(`${formatNumber(r.properOnOrder)} at Proper`);
   if (r.ampedOnOrder > 0) onOrderNotes.push(`${formatNumber(r.ampedOnOrder)} at AMPED`);
   if (onOrderNotes.length) {
-    reasoning += ` Note: ${onOrderNotes.join(" and ")} already on order — not counted above.`;
+    reasoning += isRepress
+      ? ` (${onOrderNotes.join(" and ")} already on order — already reflected in the repress figure above.)`
+      : ` Note: ${onOrderNotes.join(" and ")} already on order — not reflected in the months-of-cover figure above.`;
   }
 
   return { recommendation, reasoning };

@@ -40,6 +40,8 @@ export interface ConsolidatedRow {
   format: string;
   /** Proper's LabelName field — drives the Frontline/Catalogue view split. */
   labelName: string;
+  /** False means no AMPED record was found for this title at all — distinct from a confirmed 0. */
+  ampedMatched: boolean;
 
   properStock: number;
   ampedStock: number;

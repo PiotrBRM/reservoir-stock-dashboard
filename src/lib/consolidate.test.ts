@@ -1,0 +1,200 @@
+import { describe, expect, it } from "vitest";
+import { buildConsolidatedRows, classifyStatus } from "./consolidate";
+import { DEFAULT_THRESHOLDS } from "../types";
+import type { Thresholds } from "../types";
+
+const T: Thresholds = DEFAULT_THRESHOLDS; // lowMonths 3, highMonths 6, restockTarget 6, minMonthlyVelocity 5
+
+function properRow(overrides: Record<string, unknown> = {}) {
+  return {
+    barcode_apostrophe: "'0123456789012",
+    CatNo: "CAT001",
+    Artist: "TEST ARTIST",
+    Title: "TEST TITLE",
+    ReleaseDate: "2020-01-01",
+    FormatCode: "LP",
+    LabelName: "SOME LABEL",
+    SubLabelName: "",
+    StockOnHand: 100,
+    Sales_LastMonth: 10,
+    Sales_2MonthsAgo: 10,
+    Sales_3MonthsAgo: 10,
+    UKDealer: 10,
+    OnOrder: 0,
+    ...overrides,
+  };
+}
+
+function ampedRow(overrides: Record<string, unknown> = {}) {
+  return {
+    "UPC Full": "0123456789012",
+    "Catalog Num": "CAT001",
+    Artist: "TEST ARTIST",
+    Title: "TEST TITLE",
+    QAV: 100,
+    "Avg/Week": 2,
+    QOO: 0,
+    ...overrides,
+  };
+}
+
+describe("classifyStatus", () => {
+  it("is dormant when there's no velocity at all", () => {
+    expect(classifyStatus(100, 0, T)).toBe("dormant");
+  });
+
+  it("is dormant (not stockout) when velocity is below the trust floor, even with 0 stock", () => {
+    expect(classifyStatus(0, T.minMonthlyVelocity - 1, T)).toBe("dormant");
+  });
+
+  it("is stockout when velocity clears the floor and stock is 0", () => {
+    expect(classifyStatus(0, T.minMonthlyVelocity, T)).toBe("stockout");
+  });
+
+  it("is dormant (not critical) when a low-cover ratio comes from below-floor velocity", () => {
+    // stock=2, velocity=1 → 2 months (< lowMonths), but velocity is below the floor
+    expect(classifyStatus(2, 1, T)).toBe("dormant");
+  });
+
+  it("is critical when a low-cover ratio comes from trusted velocity", () => {
+    expect(classifyStatus(10, 10, T)).toBe("critical"); // 1 month, velocity 10 >= floor
+  });
+
+  it("is healthy inside the target window", () => {
+    expect(classifyStatus(40, 10, T)).toBe("healthy"); // 4 months
+  });
+
+  it("is overstocked above the ceiling regardless of the velocity floor", () => {
+    // Low velocity (below floor) but a huge pile of stock is still a genuine overstock signal.
+    expect(classifyStatus(1000, 1, T)).toBe("overstocked");
+  });
+});
+
+describe("buildConsolidatedRows — filtering", () => {
+  it("excludes rows with an excluded label", () => {
+    const rows = buildConsolidatedRows([properRow({ LabelName: "WARNER MUSIC" })], [ampedRow()], T);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("excludes rows with an excluded artist", () => {
+    const rows = buildConsolidatedRows([properRow({ Artist: "DE LA SOUL" })], [ampedRow({ Artist: "DE LA SOUL" })], T);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("excludes titles marked DELETED", () => {
+    const rows = buildConsolidatedRows([properRow({ Title: "DELETED - TEST TITLE" })], [ampedRow()], T);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("hides a title with truly zero stock and zero sales everywhere", () => {
+    const rows = buildConsolidatedRows(
+      [properRow({ StockOnHand: 0, Sales_LastMonth: 0, Sales_2MonthsAgo: 0, Sales_3MonthsAgo: 0 })],
+      [ampedRow({ QAV: 0, "Avg/Week": 0 })],
+      T
+    );
+    expect(rows).toHaveLength(0);
+  });
+
+  it("keeps a title with zero stock everywhere but real velocity (a genuine stockout)", () => {
+    const rows = buildConsolidatedRows(
+      [properRow({ StockOnHand: 0, Sales_LastMonth: 20, Sales_2MonthsAgo: 20, Sales_3MonthsAgo: 20 })],
+      [ampedRow({ QAV: 0, "Avg/Week": 0 })],
+      T
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("stockout");
+  });
+});
+
+describe("buildConsolidatedRows — negative stock", () => {
+  it("clamps a negative Proper stock value to 0 instead of propagating it", () => {
+    const rows = buildConsolidatedRows(
+      [properRow({ StockOnHand: -2, Sales_LastMonth: 20, Sales_2MonthsAgo: 20, Sales_3MonthsAgo: 20 })],
+      [ampedRow({ QAV: 0, "Avg/Week": 0 })],
+      T
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].properStock).toBe(0);
+    expect(rows[0].combinedStock).toBe(0);
+    expect(rows[0].stockValue).toBe(0);
+  });
+});
+
+describe("buildConsolidatedRows — AMPED match tracking", () => {
+  it("marks ampedMatched false and skips rebalance when no AMPED record matches", () => {
+    // Proper is critical, but there's no AMPED row for it at all — it must not
+    // read as "AMPED has surplus, move stock there."
+    const rows = buildConsolidatedRows(
+      [
+        properRow({
+          barcode_apostrophe: "'9999999999999",
+          CatNo: "NOMATCH",
+          Artist: "NOBODY MATCHES THIS",
+          Title: "UNMATCHED TITLE",
+          StockOnHand: 5,
+          Sales_LastMonth: 50,
+          Sales_2MonthsAgo: 50,
+          Sales_3MonthsAgo: 50,
+        }),
+      ],
+      [ampedRow()], // unrelated AMPED row, won't match by UPC/catalog/artist+title
+      T
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].ampedMatched).toBe(false);
+    expect(rows[0].regionFlag).toBeNull();
+  });
+
+  it("does not fall back to AMPED's Inv Avail (a weeks-of-cover ratio, not a unit count) when QAV is blank", () => {
+    const rows = buildConsolidatedRows(
+      [properRow()],
+      [ampedRow({ QAV: "", "Inv Avail": 284.4 })], // 284.4 is a weeks-of-cover figure in real AMPED exports
+      T
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].ampedStock).toBe(0);
+  });
+});
+
+describe("buildConsolidatedRows — repress quantity nets out inbound supply", () => {
+  it("subtracts on-order units from the suggested repress quantity", () => {
+    const withoutOnOrder = buildConsolidatedRows(
+      [properRow({ StockOnHand: 0, Sales_LastMonth: 20, Sales_2MonthsAgo: 20, Sales_3MonthsAgo: 20, OnOrder: 0 })],
+      [ampedRow({ QAV: 0, "Avg/Week": 0 })],
+      T
+    )[0];
+    const withOnOrder = buildConsolidatedRows(
+      [properRow({ StockOnHand: 0, Sales_LastMonth: 20, Sales_2MonthsAgo: 20, Sales_3MonthsAgo: 20, OnOrder: 50 })],
+      [ampedRow({ QAV: 0, "Avg/Week": 0 })],
+      T
+    )[0];
+
+    expect(withoutOnOrder.suggestedRepressQty).toBe(120); // 20/mo * 6mo target - 0 stock
+    expect(withOnOrder.suggestedRepressQty).toBe(70); // same target, minus 50 already on order
+  });
+
+  it("never suggests a negative repress quantity when on-order covers the whole shortfall", () => {
+    const row = buildConsolidatedRows(
+      [properRow({ StockOnHand: 0, Sales_LastMonth: 20, Sales_2MonthsAgo: 20, Sales_3MonthsAgo: 20, OnOrder: 999 })],
+      [ampedRow({ QAV: 0, "Avg/Week": 0 })],
+      T
+    )[0];
+    expect(row.suggestedRepressQty).toBe(0);
+  });
+});
+
+describe("buildConsolidatedRows — rebalance suggestion", () => {
+  it("flags a transfer when one region is critical and the other has confirmed surplus", () => {
+    const rows = buildConsolidatedRows(
+      [properRow({ StockOnHand: 0, Sales_LastMonth: 200, Sales_2MonthsAgo: 200, Sales_3MonthsAgo: 200 })],
+      [ampedRow({ QAV: 310, "Avg/Week": 0.23 })], // ~1/mo — heavily overstocked at AMPED
+      T
+    );
+    const row = rows[0];
+    expect(row.ampedMatched).toBe(true);
+    expect(row.regionFlag).toBe("shift_to_proper");
+    expect(row.suggestedTransferQty).toBeGreaterThan(0);
+    // A transfer doesn't add stock to the system, so it must not reduce the repress figure.
+    expect(row.suggestedRepressQty).toBeGreaterThan(0);
+  });
+});

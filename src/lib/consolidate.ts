@@ -172,6 +172,10 @@ export function buildConsolidatedRows(
     const properStock = Math.max(0, getNumericValue(row.StockOnHand));
     const ampedMatch = findAmpedForProper(ampedIndex, row);
 
+    // Note: deliberately excludes AMPED's "Inv Avail" field from this fallback
+    // chain — despite the name, that field is weeks-of-inventory (QAV ÷
+    // Avg/Week), not a unit count. Falling back to it here would silently
+    // substitute a ratio for a stock quantity if QAV is ever blank.
     const ampedStock = ampedMatch
       ? Math.max(
           0,
@@ -184,7 +188,6 @@ export function buildConsolidatedRows(
               ampedMatch["On Hand"] ||
               ampedMatch["Available Qty"] ||
               ampedMatch["Inventory Qty Available"] ||
-              ampedMatch["Inv Avail"] ||
               0
           )
         )
@@ -231,9 +234,15 @@ export function buildConsolidatedRows(
     let excessHoldingCostPerMonth: number | null = null;
 
     if ((status === "critical" || status === "stockout") && combinedVelocity > 0) {
+      // Net out units already inbound — they'll land in combinedStock once they
+      // arrive, so counting them again here would overstate the repress need.
+      // (A cross-region transfer does NOT get netted out here: reallocating
+      // existing stock between Proper and AMPED doesn't add units to the total
+      // pool, so it can't reduce this figure — see the rebalance block below.)
+      const alreadyInbound = properOnOrder + ampedOnOrder;
       suggestedRepressQty = Math.max(
         0,
-        Math.ceil(combinedVelocity * thresholds.restockTargetMonths - combinedStock)
+        Math.ceil(combinedVelocity * thresholds.restockTargetMonths - combinedStock - alreadyInbound)
       );
     }
     if (status === "overstocked") {
@@ -262,21 +271,27 @@ export function buildConsolidatedRows(
     let regionFlag: "shift_to_proper" | "shift_to_amped" | null = null;
     let suggestedTransferQty: number | null = null;
 
-    if (isNeedy(ampedStatus) && isSurplus(properStatus) && properStock > 0) {
-      const deficit = Math.max(0, ampedAvgMonthly * thresholds.restockTargetMonths - ampedStock);
-      const surplus = Math.max(0, properStock - properAvgMonthly * thresholds.highMonths);
-      const qty = Math.round(Math.min(deficit, surplus));
-      if (qty > 0) {
-        regionFlag = "shift_to_amped";
-        suggestedTransferQty = qty;
-      }
-    } else if (isNeedy(properStatus) && isSurplus(ampedStatus) && ampedStock > 0) {
-      const deficit = Math.max(0, properAvgMonthly * thresholds.restockTargetMonths - properStock);
-      const surplus = Math.max(0, ampedStock - ampedAvgMonthly * thresholds.highMonths);
-      const qty = Math.round(Math.min(deficit, surplus));
-      if (qty > 0) {
-        regionFlag = "shift_to_proper";
-        suggestedTransferQty = qty;
+    // Only suggest a cross-region transfer when this title actually has a
+    // confirmed AMPED counterpart. Without a match, "0 stock / 0 sales" just
+    // means "no AMPED data for this title" (e.g. never distributed in NA) —
+    // not a genuine surplus to draw from.
+    if (ampedMatch) {
+      if (isNeedy(ampedStatus) && isSurplus(properStatus) && properStock > 0) {
+        const deficit = Math.max(0, ampedAvgMonthly * thresholds.restockTargetMonths - ampedStock);
+        const surplus = Math.max(0, properStock - properAvgMonthly * thresholds.highMonths);
+        const qty = Math.round(Math.min(deficit, surplus));
+        if (qty > 0) {
+          regionFlag = "shift_to_amped";
+          suggestedTransferQty = qty;
+        }
+      } else if (isNeedy(properStatus) && isSurplus(ampedStatus) && ampedStock > 0) {
+        const deficit = Math.max(0, properAvgMonthly * thresholds.restockTargetMonths - properStock);
+        const surplus = Math.max(0, ampedStock - ampedAvgMonthly * thresholds.highMonths);
+        const qty = Math.round(Math.min(deficit, surplus));
+        if (qty > 0) {
+          regionFlag = "shift_to_proper";
+          suggestedTransferQty = qty;
+        }
       }
     }
 
@@ -288,6 +303,7 @@ export function buildConsolidatedRows(
       releaseDate: row.ReleaseDate || "",
       format: row.FormatCode || "",
       labelName: String(row.LabelName || "").trim(),
+      ampedMatched: ampedMatch !== null,
       properStock,
       ampedStock,
       combinedStock,
