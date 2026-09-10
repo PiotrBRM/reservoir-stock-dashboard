@@ -19,7 +19,7 @@ export const STATUS_STYLE: Record<
     fill: "bg-critical",
   },
   critical: {
-    label: "Repress now",
+    label: "Needs repress",
     icon: OctagonAlert,
     text: "text-serious",
     bg: "bg-serious-soft",

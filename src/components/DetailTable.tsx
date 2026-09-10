@@ -1,9 +1,10 @@
 // src/components/DetailTable.tsx
-import { useMemo, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, Search } from "lucide-react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight, Download, Search } from "lucide-react";
 import type { ConsolidatedRow, Thresholds } from "../types";
 import StatusBadge from "./StatusBadge";
 import CoverMeter from "./CoverMeter";
+import ReleaseDetailPanel from "./ReleaseDetailPanel";
 import { formatMoney, formatNumber } from "../lib/format";
 
 type Group = "release" | "proper" | "amped" | "combined" | "value";
@@ -129,13 +130,24 @@ interface DetailTableProps {
   rows: ConsolidatedRow[];
   thresholds: Thresholds;
   onDownload: () => void;
-  onSelect: (row: ConsolidatedRow) => void;
 }
 
-export default function DetailTable({ rows, thresholds, onDownload, onSelect }: DetailTableProps) {
+const rowKey = (r: ConsolidatedRow) => `${r.barcode}|${r.catalogNo}`;
+
+export default function DetailTable({ rows, thresholds, onDownload }: DetailTableProps) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<Column["key"]>("combinedStock");
   const [sortDir, setSortDir] = useState<1 | -1>(-1);
+  const [openRows, setOpenRows] = useState<Set<string>>(new Set());
+
+  const toggleRow = (key: string) => {
+    setOpenRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -199,6 +211,7 @@ export default function DetailTable({ rows, thresholds, onDownload, onSelect }: 
                   {GROUP_META[run.group].label}
                 </th>
               ))}
+              <th className="w-8 border-b border-slate-100 bg-slate-50" />
             </tr>
             <tr className="bg-slate-50">
               {COLUMNS.map((col, i) => (
@@ -223,25 +236,43 @@ export default function DetailTable({ rows, thresholds, onDownload, onSelect }: 
                   </span>
                 </th>
               ))}
+              <th className="w-8 bg-slate-50" />
             </tr>
           </thead>
           <tbody>
-            {filtered.map((r, i) => (
-              <tr
-                key={`${r.barcode}-${i}`}
-                onClick={() => onSelect(r)}
-                className={`cursor-pointer hover:bg-slate-100/80 ${i % 2 ? "bg-slate-50/60" : "bg-white"}`}
-              >
-                {COLUMNS.map((col, ci) => (
-                  <td
-                    key={ci}
-                    className={`px-3 py-2 whitespace-nowrap ${col.align === "right" ? "text-right" : "text-left"}`}
+            {filtered.map((r, i) => {
+              const key = rowKey(r);
+              const open = openRows.has(key);
+              return (
+                <Fragment key={key}>
+                  <tr
+                    onClick={() => toggleRow(key)}
+                    className={`cursor-pointer hover:bg-slate-100/80 ${
+                      open ? "bg-slate-100/80" : i % 2 ? "bg-slate-50/60" : "bg-white"
+                    }`}
                   >
-                    {col.render(r, thresholds)}
-                  </td>
-                ))}
-              </tr>
-            ))}
+                    {COLUMNS.map((col, ci) => (
+                      <td
+                        key={ci}
+                        className={`px-3 py-2 whitespace-nowrap ${col.align === "right" ? "text-right" : "text-left"}`}
+                      >
+                        {col.render(r, thresholds)}
+                      </td>
+                    ))}
+                    <td className="px-2 py-2 text-slate-300">
+                      <ChevronRight className={`w-4 h-4 transition-transform ${open ? "rotate-90" : ""}`} />
+                    </td>
+                  </tr>
+                  {open && (
+                    <tr>
+                      <td colSpan={COLUMNS.length + 1} className="p-0 border-t border-b border-slate-100">
+                        <ReleaseDetailPanel row={r} thresholds={thresholds} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>

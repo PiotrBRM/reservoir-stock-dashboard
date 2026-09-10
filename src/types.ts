@@ -2,6 +2,14 @@
 
 export type StockStatus = "stockout" | "critical" | "healthy" | "overstocked" | "dormant";
 
+export type CatalogueView = "combined" | "frontline" | "catalogue";
+
+/** Proper LabelName values that define the Frontline / Catalogue split. */
+export const VIEW_LABEL_NAME: Record<Exclude<CatalogueView, "combined">, string> = {
+  frontline: "CHRYSALIS FRONTLINE",
+  catalogue: "CHRYSALIS RECORDS",
+};
+
 export interface Thresholds {
   /** Below this many months of cover, a title is flagged for repress. */
   lowMonths: number;
@@ -30,6 +38,8 @@ export interface ConsolidatedRow {
   title: string;
   releaseDate: string;
   format: string;
+  /** Proper's LabelName field — drives the Frontline/Catalogue view split. */
+  labelName: string;
 
   properStock: number;
   ampedStock: number;

@@ -1,9 +1,9 @@
 // src/App.tsx
 import { useMemo, useState } from "react";
-import { AlertCircle, AlertTriangle, Archive, ArrowLeftRight, Boxes, OctagonAlert, PoundSterling } from "lucide-react";
+import { AlertCircle, AlertTriangle, Archive, ArrowLeftRight, Boxes, OctagonAlert } from "lucide-react";
 
-import type { ConsolidatedRow, Thresholds } from "./types";
-import { DEFAULT_THRESHOLDS } from "./types";
+import type { CatalogueView, Thresholds } from "./types";
+import { DEFAULT_THRESHOLDS, VIEW_LABEL_NAME } from "./types";
 import { buildConsolidatedRows } from "./lib/consolidate";
 import { readCSVFile, readExcelFile } from "./lib/fileReaders";
 import { formatMoney, formatNumber } from "./lib/format";
@@ -16,7 +16,12 @@ import KpiCard from "./components/KpiCard";
 import SettingsBar from "./components/SettingsBar";
 import AlertTable from "./components/AlertTable";
 import DetailTable from "./components/DetailTable";
-import ReleaseDetailDrawer from "./components/ReleaseDetailDrawer";
+
+const VIEW_LABEL: Record<CatalogueView, string> = {
+  combined: "Combined",
+  frontline: "Frontline",
+  catalogue: "Catalogue",
+};
 
 export default function StockDashboard() {
   const [source1Data, setSource1Data] = useState<any[]>([]); // Proper CSV — UK & ROW
@@ -24,7 +29,7 @@ export default function StockDashboard() {
   const [properFileName, setProperFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [thresholds, setThresholds] = useState<Thresholds>(DEFAULT_THRESHOLDS);
-  const [selectedRow, setSelectedRow] = useState<ConsolidatedRow | null>(null);
+  const [view, setView] = useState<CatalogueView>("combined");
 
   const handleFile = async (file: File | undefined, target: 1 | 2) => {
     if (!file) return;
@@ -55,16 +60,30 @@ export default function StockDashboard() {
 
   const hasResult = consolidated.length > 0;
 
+  const viewCounts = useMemo(
+    () => ({
+      combined: consolidated.length,
+      frontline: consolidated.filter((r) => r.labelName === VIEW_LABEL_NAME.frontline).length,
+      catalogue: consolidated.filter((r) => r.labelName === VIEW_LABEL_NAME.catalogue).length,
+    }),
+    [consolidated]
+  );
+
+  // The active view scopes everything below it — KPIs, alerts, and the detail table.
+  const viewRows = useMemo(() => {
+    if (view === "combined") return consolidated;
+    return consolidated.filter((r) => r.labelName === VIEW_LABEL_NAME[view]);
+  }, [consolidated, view]);
+
   const kpis = useMemo(() => {
-    const totalUnits = consolidated.reduce((sum, r) => sum + r.combinedStock, 0);
-    const totalValue = consolidated.reduce((sum, r) => sum + r.stockValue, 0);
-    const repressRows = consolidated.filter((r) => r.status === "critical" || r.status === "stockout");
-    const overstockRows = consolidated.filter((r) => r.status === "overstocked");
-    const rebalanceRows = consolidated.filter((r) => r.regionFlag !== null);
+    const totalUnits = viewRows.reduce((sum, r) => sum + r.combinedStock, 0);
+    const repressRows = viewRows.filter((r) => r.status === "critical" || r.status === "stockout");
+    const overstockRows = viewRows.filter((r) => r.status === "overstocked");
+    const rebalanceRows = viewRows.filter((r) => r.regionFlag !== null);
     const excessValue = overstockRows.reduce((sum, r) => sum + (r.excessValue || 0), 0);
     const monthlyHoldingCost = overstockRows.reduce((sum, r) => sum + (r.excessHoldingCostPerMonth || 0), 0);
-    return { totalUnits, totalValue, repressRows, overstockRows, rebalanceRows, excessValue, monthlyHoldingCost };
-  }, [consolidated]);
+    return { totalUnits, repressRows, overstockRows, rebalanceRows, excessValue, monthlyHoldingCost };
+  }, [viewRows]);
 
   const repressRows = useMemo(
     () => [...kpis.repressRows].sort((a, b) => (a.monthsOfCover ?? -1) - (b.monthsOfCover ?? -1)),
@@ -82,14 +101,14 @@ export default function StockDashboard() {
   );
 
   const dormantRows = useMemo(
-    () => consolidated.filter((r) => r.status === "dormant").sort((a, b) => b.combinedStock - a.combinedStock),
-    [consolidated]
+    () => viewRows.filter((r) => r.status === "dormant").sort((a, b) => b.combinedStock - a.combinedStock),
+    [viewRows]
   );
 
   const downloadExcel = async () => {
-    if (!consolidated.length) return;
+    if (!viewRows.length) return;
     const XLSX = await import("xlsx");
-    const exportRows = consolidated.map((r) => ({
+    const exportRows = viewRows.map((r) => ({
       Barcode: r.barcode,
       "Catalog No": r.catalogNo,
       Artist: r.artist,
@@ -122,7 +141,7 @@ export default function StockDashboard() {
     ws["!cols"] = Object.keys(exportRows[0] || {}).map(() => ({ wch: 20 }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Stock Health Report");
-    XLSX.writeFile(wb, `Stock_Health_Report_${new Date().toISOString().split("T")[0]}.xlsx`);
+    XLSX.writeFile(wb, `Stock_Health_Report_${VIEW_LABEL[view]}_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
   const properDetail = useMemo(() => {
@@ -231,17 +250,26 @@ export default function StockDashboard() {
 
         {hasResult && (
           <div className="flex flex-col gap-6">
-            <PortfolioHealthBar rows={consolidated} />
+            <div className="inline-flex items-center gap-1 rounded-lg bg-slate-200/60 p-1 self-start">
+              {(Object.keys(VIEW_LABEL) as CatalogueView[]).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    view === v ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  {VIEW_LABEL[v]}
+                  <span className="ml-1.5 text-xs text-slate-400 tabular-nums">{viewCounts[v]}</span>
+                </button>
+              ))}
+            </div>
 
-            <section className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <KpiCard icon={Boxes} label="Titles tracked" value={formatNumber(consolidated.length)} />
+            <PortfolioHealthBar rows={viewRows} />
+
+            <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <KpiCard icon={Boxes} label="Titles tracked" value={formatNumber(viewRows.length)} />
               <KpiCard icon={Archive} label="Combined units in stock" value={formatNumber(kpis.totalUnits)} />
-              <KpiCard
-                icon={PoundSterling}
-                label="Estimated stock value"
-                value={formatMoney(kpis.totalValue)}
-                sublabel="At Proper UK dealer price"
-              />
               <KpiCard
                 icon={OctagonAlert}
                 label="Needs repress"
@@ -274,7 +302,6 @@ export default function StockDashboard() {
                 rows={repressRows}
                 thresholds={thresholds}
                 emptyMessage="Nothing urgent — every title has enough cover."
-                onSelect={setSelectedRow}
               />
               <AlertTable
                 title="Rebalance opportunities"
@@ -285,7 +312,6 @@ export default function StockDashboard() {
                 rows={rebalanceRows}
                 thresholds={thresholds}
                 emptyMessage="No cross-region imbalances detected."
-                onSelect={setSelectedRow}
               />
               <AlertTable
                 title="Overstocked — review holding"
@@ -296,7 +322,6 @@ export default function StockDashboard() {
                 rows={overstockRows}
                 thresholds={thresholds}
                 emptyMessage="No titles are holding excess stock right now."
-                onSelect={setSelectedRow}
               />
               <AlertTable
                 title="Dormant — no recent sales"
@@ -308,21 +333,17 @@ export default function StockDashboard() {
                 thresholds={thresholds}
                 emptyMessage="No dormant stock."
                 defaultVisible={5}
-                onSelect={setSelectedRow}
               />
             </section>
 
             <DetailTable
-              rows={consolidated}
+              rows={viewRows}
               thresholds={thresholds}
               onDownload={downloadExcel}
-              onSelect={setSelectedRow}
             />
           </div>
         )}
       </main>
-
-      <ReleaseDetailDrawer row={selectedRow} thresholds={thresholds} onClose={() => setSelectedRow(null)} />
     </div>
   );
 }

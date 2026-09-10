@@ -287,6 +287,7 @@ export function buildConsolidatedRows(
       title: row.Title || "",
       releaseDate: row.ReleaseDate || "",
       format: row.FormatCode || "",
+      labelName: String(row.LabelName || "").trim(),
       properStock,
       ampedStock,
       combinedStock,
