@@ -86,7 +86,7 @@ export default function AlertTable({
                   <th className="px-4 py-2 text-left font-medium">Status</th>
                   <th className="px-4 py-2 text-left font-medium">Release</th>
                   <th className="px-4 py-2 text-left font-medium">Format</th>
-                  <th className="px-4 py-2 text-left font-medium">Proper (UK/ROW) vs AMPED (NA)</th>
+                  <th className="px-4 py-2 text-left font-medium">Proper vs AMPED</th>
                   {variant !== "dormant" && <th className="px-4 py-2 text-left font-medium">Combined cover</th>}
                   {variant === "repress" && <th className="px-4 py-2 text-right font-medium">Suggested repress</th>}
                   {variant === "overstock" && (

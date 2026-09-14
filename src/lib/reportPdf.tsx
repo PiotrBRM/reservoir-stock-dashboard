@@ -169,7 +169,7 @@ function ReleaseCard({ row, thresholds }: { row: ConsolidatedRow; thresholds: Th
           {row.artist} — {row.title}
         </Text>
         <Text style={styles.cardMeta}>
-          {row.format} · {row.catalogNo}
+          {row.format} · {row.catalogNo} · {row.barcode || "—"}
         </Text>
       </View>
 
@@ -178,13 +178,13 @@ function ReleaseCard({ row, thresholds }: { row: ConsolidatedRow; thresholds: Th
 
       <View style={styles.regionRow}>
         <View style={[styles.regionBox, { backgroundColor: COLOR.properSoft }]}>
-          <Text style={[styles.regionLabel, { color: COLOR.proper }]}>PROPER — UK & ROW</Text>
+          <Text style={[styles.regionLabel, { color: COLOR.proper }]}>PROPER</Text>
           <Text style={styles.regionStock}>{formatNumber(row.properStock)} units</Text>
           <CoverBar months={row.properMonthsOfCover} status={row.properStatus} thresholds={thresholds} />
           {row.properOnOrder > 0 && <Text style={styles.regionNote}>+{formatNumber(row.properOnOrder)} on order</Text>}
         </View>
         <View style={[styles.regionBox, { backgroundColor: COLOR.ampedSoft }]}>
-          <Text style={[styles.regionLabel, { color: COLOR.amped }]}>AMPED — NA</Text>
+          <Text style={[styles.regionLabel, { color: COLOR.amped }]}>AMPED</Text>
           {row.ampedMatched ? (
             <>
               <Text style={styles.regionStock}>{formatNumber(row.ampedStock)} units</Text>
@@ -194,7 +194,7 @@ function ReleaseCard({ row, thresholds }: { row: ConsolidatedRow; thresholds: Th
               )}
             </>
           ) : (
-            <Text style={styles.regionNote}>No AMPED match found — likely not distributed in NA.</Text>
+            <Text style={styles.regionNote}>No AMPED match found — likely not distributed via AMPED.</Text>
           )}
         </View>
       </View>
@@ -292,7 +292,7 @@ export function ReportPdfDocument({
       <Page size="A4" style={styles.page} wrap>
         <View style={styles.headerDivider}>
           <Text style={styles.h1}>Stock Health Report</Text>
-          <Text style={styles.subtitle}>Reservoir — combined Proper (UK & ROW) &amp; AMPED (NA) sell-through</Text>
+          <Text style={styles.subtitle}>Reservoir — combined Proper &amp; AMPED sell-through</Text>
           <View style={styles.metaRow}>
             <Text style={styles.metaItem}>
               <Text style={styles.metaLabel}>View: </Text>
@@ -316,7 +316,7 @@ export function ReportPdfDocument({
         <View style={styles.panel}>
           <Text style={styles.h2}>How to read this report</Text>
           <Text style={styles.panelText}>
-            Every release is tracked at two distributors: Proper (UK & Rest of World) and AMPED (North America).
+            Every release is tracked at two distributors: Proper and AMPED.
             "Months of cover" is stock ÷ average monthly sales — how long the current stock would last at the
             recent sell-through rate. Titles below {thresholds.lowMonths} months are flagged to repress; above{" "}
             {thresholds.highMonths} months they're flagged as overstocked (stock that costs money to hold); the

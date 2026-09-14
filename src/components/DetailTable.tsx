@@ -20,8 +20,8 @@ interface Column {
 
 const GROUP_META: Record<Group, { label: string; className: string }> = {
   release: { label: "Release", className: "bg-slate-50 text-slate-500" },
-  proper: { label: "Proper — UK & ROW", className: "bg-proper-soft text-proper" },
-  amped: { label: "AMPED — NA", className: "bg-amped-soft text-amped" },
+  proper: { label: "Proper", className: "bg-proper-soft text-proper" },
+  amped: { label: "AMPED", className: "bg-amped-soft text-amped" },
   combined: { label: "Combined", className: "bg-slate-100 text-slate-600" },
   value: { label: "Value", className: "bg-slate-50 text-slate-500" },
 };

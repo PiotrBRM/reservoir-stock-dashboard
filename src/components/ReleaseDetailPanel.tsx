@@ -58,7 +58,7 @@ export default function ReleaseDetailPanel({ row, thresholds }: { row: Consolida
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <div className="rounded-lg border border-proper/20 bg-white p-3">
-          <RegionTag region="proper" compact />
+          <RegionTag region="proper" />
           <div className="mt-1.5 text-xl font-semibold text-slate-900">{formatNumber(row.properStock)}</div>
           <div className="text-xs text-slate-400">units in stock</div>
           <CoverMeter months={row.properMonthsOfCover} status={row.properStatus} thresholds={thresholds} className="mt-2" />
@@ -67,7 +67,7 @@ export default function ReleaseDetailPanel({ row, thresholds }: { row: Consolida
           )}
         </div>
         <div className="rounded-lg border border-amped/20 bg-white p-3">
-          <RegionTag region="amped" compact />
+          <RegionTag region="amped" />
           {row.ampedMatched ? (
             <>
               <div className="mt-1.5 text-xl font-semibold text-slate-900">{formatNumber(row.ampedStock)}</div>
@@ -84,7 +84,7 @@ export default function ReleaseDetailPanel({ row, thresholds }: { row: Consolida
             </>
           ) : (
             <div className="mt-1.5 text-xs text-slate-400 italic leading-relaxed">
-              No matching AMPED record found — likely not distributed in North America, rather than confirmed at 0.
+              No matching AMPED record found — likely not distributed via AMPED, rather than confirmed at 0.
             </div>
           )}
         </div>

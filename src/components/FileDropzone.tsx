@@ -55,9 +55,7 @@ export default function FileDropzone({ id, region, accept, rowCount, hint, detai
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${region === "proper" ? "bg-proper" : "bg-amped"}`} />
-            <span className="font-semibold text-slate-800">
-              {meta.name} <span className="font-normal text-slate-400">— {meta.territory}</span>
-            </span>
+            <span className="font-semibold text-slate-800">{meta.name}</span>
           </div>
           <div className="text-xs text-slate-500 mt-0.5">
             Rows: {rowCount} • {hint}

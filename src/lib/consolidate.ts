@@ -296,7 +296,9 @@ export function buildConsolidatedRows(
     }
 
     out.push({
-      barcode: row.barcode_apostrophe || row.Barcode || row.UPC || "",
+      // Strip the leading apostrophe some exports use to force text formatting
+      // (preserve leading zeros — those are part of the real UPC/EAN).
+      barcode: String(row.barcode_apostrophe || row.Barcode || row.UPC || "").replace(/^'+/, ""),
       catalogNo: row.CatNo || "",
       artist: row.Artist || "",
       title: row.Title || "",
