@@ -1,6 +1,6 @@
 // src/App.tsx
 import { useMemo, useState } from "react";
-import { AlertCircle, AlertTriangle, Archive, ArrowLeftRight, Boxes, FileDown, FileSpreadsheet, OctagonAlert, Sparkles, Trash2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, Archive, ArrowLeftRight, Boxes, FileDown, FileSpreadsheet, OctagonAlert, Trash2 } from "lucide-react";
 
 import type { CatalogueView, ConsolidatedRow, Thresholds } from "./types";
 import { DEFAULT_THRESHOLDS, VIEW_LABEL_NAMES } from "./types";
@@ -32,7 +32,6 @@ export default function StockDashboard() {
   const [thresholds, setThresholds] = useState<Thresholds>(DEFAULT_THRESHOLDS);
   const [view, setView] = useState<CatalogueView>("combined");
   const [generatingReport, setGeneratingReport] = useState(false);
-  const [loadingSample, setLoadingSample] = useState(false);
 
   const handleFile = async (file: File | undefined, target: 1 | 2) => {
     if (!file) return;
@@ -48,34 +47,6 @@ export default function StockDashboard() {
       }
     } catch (err) {
       setError(`Error loading ${file?.name || ""}: ${(err as Error).message || String(err)}`);
-    }
-  };
-
-  // Lets anyone testing the tool skip manually re-uploading both reports after
-  // every refresh — pulls the same two files in from public/sample-data.
-  const loadSampleReports = async () => {
-    if (loadingSample) return;
-    setLoadingSample(true);
-    setError(null);
-    try {
-      const base = import.meta.env.BASE_URL;
-      const properName = "output-Basil-SupplierStockReport-20260907-074904.csv";
-      const ampedName = "Inventory-Analysis.xlsx";
-      const [properRes, ampedRes] = await Promise.all([
-        fetch(`${base}sample-data/${properName}`),
-        fetch(`${base}sample-data/${ampedName}`),
-      ]);
-      if (!properRes.ok || !ampedRes.ok) throw new Error("Could not fetch the example report files.");
-      const [properBlob, ampedBlob] = await Promise.all([properRes.blob(), ampedRes.blob()]);
-      const properFile = new File([properBlob], properName, { type: "text/csv" });
-      const ampedFile = new File([ampedBlob], ampedName, {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      await Promise.all([handleFile(properFile, 1), handleFile(ampedFile, 2)]);
-    } catch (err) {
-      setError(`Error loading example reports: ${(err as Error).message || String(err)}`);
-    } finally {
-      setLoadingSample(false);
     }
   };
 
@@ -327,26 +298,6 @@ export default function StockDashboard() {
                 Waiting on the second file — one loaded so far.
               </div>
             )}
-
-            <div className="mt-6 flex items-center gap-3 text-xs text-slate-400">
-              <div className="h-px flex-1 bg-slate-200" />
-              or
-              <div className="h-px flex-1 bg-slate-200" />
-            </div>
-            <div className="mt-4 flex justify-center">
-              <button
-                onClick={loadSampleReports}
-                disabled={loadingSample}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-              >
-                {loadingSample ? (
-                  <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-                {loadingSample ? "Loading example reports…" : "Load example reports"}
-              </button>
-            </div>
           </div>
         )}
 
