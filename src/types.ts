@@ -62,6 +62,15 @@ export interface ConsolidatedRow {
   status: StockStatus;
   /** Units to reorder to reach the restock target. Only set for stockout/critical rows. */
   suggestedRepressQty: number | null;
+  /**
+   * How suggestedRepressQty splits across the two distributors, based on each
+   * region's own deficit against the restock target — a repress run is one
+   * manufacturing batch, but Proper and AMPED are separate warehouses that
+   * need their own shipment split. Both null exactly when suggestedRepressQty
+   * is null; otherwise they always sum to it.
+   */
+  suggestedRepressProperQty: number | null;
+  suggestedRepressAmpedQty: number | null;
   /** Units held beyond the overstock threshold. Only set for overstocked rows. */
   excessUnits: number | null;
   /** excessUnits * unitPrice */

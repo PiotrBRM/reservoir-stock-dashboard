@@ -31,6 +31,8 @@ function toExportRow(r: ConsolidatedRow) {
     "Unit Price (£)": r.unitPrice,
     "Stock Value (£)": r.stockValue,
     "Suggested Repress Qty": r.suggestedRepressQty ?? "",
+    "Suggested Repress — Proper": r.suggestedRepressProperQty ?? "",
+    "Suggested Repress — AMPED": r.suggestedRepressAmpedQty ?? "",
     "Excess Units": r.excessUnits ?? "",
     "Excess Value (£)": r.excessValue ?? "",
     "Rebalance Suggestion": r.regionFlag ?? "",

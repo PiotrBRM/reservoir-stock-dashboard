@@ -10,27 +10,38 @@ export interface Explanation {
   reasoning: string;
 }
 
+/** Where the repress quantity should ship, in words — the headline number alone doesn't say. */
+function repressSplitPhrase(r: ConsolidatedRow): string {
+  const proper = r.suggestedRepressProperQty ?? 0;
+  const amped = r.suggestedRepressAmpedQty ?? 0;
+  if (proper > 0 && amped > 0) return `${formatNumber(proper)} to Proper, ${formatNumber(amped)} to AMPED`;
+  if (proper > 0) return `all to Proper`;
+  if (amped > 0) return `all to AMPED`;
+  return "";
+}
+
 export function explainRow(r: ConsolidatedRow, t: Thresholds): Explanation {
   const velocity = r.combinedVelocity.toFixed(1);
   const cover = (r.monthsOfCover ?? 0).toFixed(1);
+  const split = repressSplitPhrase(r);
 
   let recommendation: string;
   let reasoning: string;
 
   switch (r.status) {
     case "stockout":
-      recommendation = `Repress ${formatNumber(r.suggestedRepressQty ?? 0)} units`;
+      recommendation = `Repress ${formatNumber(r.suggestedRepressQty ?? 0)} units${split ? ` (${split})` : ""}`;
       reasoning = `This is out of stock everywhere, but demand hasn't stopped — it's still selling about ${velocity} units a month combined. Repressing ${formatNumber(
         r.suggestedRepressQty ?? 0
-      )} units would rebuild ${t.restockTargetMonths} months of cover at that rate.`;
+      )} units${split ? ` (${split})` : ""} would rebuild ${t.restockTargetMonths} months of cover at that rate.`;
       break;
     case "critical":
-      recommendation = `Repress ${formatNumber(r.suggestedRepressQty ?? 0)} units`;
+      recommendation = `Repress ${formatNumber(r.suggestedRepressQty ?? 0)} units${split ? ` (${split})` : ""}`;
       reasoning = `At the current combined pace of ${velocity} units a month, the ${formatNumber(
         r.combinedStock
       )} units left in stock will only last about ${cover} months — under your ${t.lowMonths}-month threshold. Repressing ${formatNumber(
         r.suggestedRepressQty ?? 0
-      )} units would bring that back up to your ${t.restockTargetMonths}-month target.`;
+      )} units${split ? ` (${split})` : ""} would bring that back up to your ${t.restockTargetMonths}-month target.`;
       break;
     case "overstocked":
       recommendation = "No repress needed — review holding";

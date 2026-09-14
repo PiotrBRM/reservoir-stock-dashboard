@@ -244,6 +244,8 @@ export function buildConsolidatedRows(
     if (deletionType !== null) status = "deleted";
 
     let suggestedRepressQty: number | null = null;
+    let suggestedRepressProperQty: number | null = null;
+    let suggestedRepressAmpedQty: number | null = null;
     let excessUnits: number | null = null;
     let excessValue: number | null = null;
     let excessHoldingCostPerMonth: number | null = null;
@@ -259,6 +261,27 @@ export function buildConsolidatedRows(
         0,
         Math.ceil(combinedVelocity * thresholds.restockTargetMonths - combinedStock - alreadyInbound)
       );
+
+      // A repress is one manufacturing run, but Proper and AMPED are separate
+      // warehouses that each need their own shipment — split the total by each
+      // region's own deficit against the target, clamped at 0 so a region
+      // already sitting on enough stock doesn't get assigned a negative share.
+      const properDeficit = Math.max(0, properAvgMonthly * thresholds.restockTargetMonths - properStock - properOnOrder);
+      const ampedDeficit = Math.max(0, ampedAvgMonthly * thresholds.restockTargetMonths - ampedStock - ampedOnOrder);
+      const totalDeficit = properDeficit + ampedDeficit;
+      if (suggestedRepressQty === 0) {
+        suggestedRepressProperQty = 0;
+        suggestedRepressAmpedQty = 0;
+      } else if (totalDeficit > 0) {
+        suggestedRepressProperQty = Math.round(suggestedRepressQty * (properDeficit / totalDeficit));
+        suggestedRepressAmpedQty = suggestedRepressQty - suggestedRepressProperQty;
+      } else {
+        // Neither region shows an individual deficit (can happen right at the
+        // rounding boundary) — attribute it all to Proper as the safer default
+        // rather than leaving the split undefined.
+        suggestedRepressProperQty = suggestedRepressQty;
+        suggestedRepressAmpedQty = 0;
+      }
     }
     if (status === "overstocked") {
       excessUnits = Math.max(0, Math.floor(combinedStock - combinedVelocity * thresholds.highMonths));
@@ -334,6 +357,8 @@ export function buildConsolidatedRows(
       stockValue,
       status,
       suggestedRepressQty,
+      suggestedRepressProperQty,
+      suggestedRepressAmpedQty,
       excessUnits,
       excessValue,
       excessHoldingCostPerMonth,

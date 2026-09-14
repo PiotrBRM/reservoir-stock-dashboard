@@ -26,6 +26,8 @@ function row(overrides: Partial<ConsolidatedRow> = {}): ConsolidatedRow {
     stockValue: 0,
     status: "dormant",
     suggestedRepressQty: null,
+    suggestedRepressProperQty: null,
+    suggestedRepressAmpedQty: null,
     excessUnits: null,
     excessValue: null,
     excessHoldingCostPerMonth: null,
@@ -84,6 +86,36 @@ describe("explainRow", () => {
     const r = row({ status: "healthy", combinedVelocity: 10, combinedStock: 50, monthsOfCover: 5, regionFlag: "shift_to_amped", suggestedTransferQty: 30 });
     const { recommendation } = explainRow(r, T);
     expect(recommendation).toMatch(/^Move ~30 units: Proper → AMPED/);
+  });
+
+  it("states which region(s) a repress quantity should ship to", () => {
+    const both = explainRow(
+      row({
+        status: "critical",
+        combinedVelocity: 20,
+        combinedStock: 10,
+        monthsOfCover: 0.5,
+        suggestedRepressQty: 110,
+        suggestedRepressProperQty: 60,
+        suggestedRepressAmpedQty: 50,
+      }),
+      T
+    );
+    expect(both.recommendation).toBe("Repress 110 units (60 to Proper, 50 to AMPED)");
+    expect(both.reasoning).toMatch(/110 units \(60 to Proper, 50 to AMPED\) would bring/);
+
+    const properOnly = explainRow(
+      row({
+        status: "stockout",
+        combinedVelocity: 20,
+        combinedStock: 0,
+        suggestedRepressQty: 120,
+        suggestedRepressProperQty: 120,
+        suggestedRepressAmpedQty: 0,
+      }),
+      T
+    );
+    expect(properOnly.recommendation).toBe("Repress 120 units (all to Proper)");
   });
 
   it("distinguishes low-volume dormant from genuinely no-sales dormant", () => {

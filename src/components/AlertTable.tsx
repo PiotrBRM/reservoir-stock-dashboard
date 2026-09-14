@@ -180,8 +180,17 @@ export default function AlertTable({
                           </td>
                         )}
                         {variant === "repress" && (
-                          <td className="px-4 py-2 text-right font-semibold text-serious tabular-nums">
-                            {r.suggestedRepressQty !== null ? formatNumber(r.suggestedRepressQty) : "—"}
+                          <td className="px-4 py-2 text-right">
+                            <div className="font-semibold text-serious tabular-nums">
+                              {r.suggestedRepressQty !== null ? formatNumber(r.suggestedRepressQty) : "—"}
+                            </div>
+                            {r.suggestedRepressQty !== null && r.suggestedRepressQty > 0 && (
+                              <div className="text-[11px] font-normal text-slate-400 tabular-nums">
+                                {(r.suggestedRepressProperQty ?? 0) > 0 && `${formatNumber(r.suggestedRepressProperQty ?? 0)} Proper`}
+                                {(r.suggestedRepressProperQty ?? 0) > 0 && (r.suggestedRepressAmpedQty ?? 0) > 0 && " · "}
+                                {(r.suggestedRepressAmpedQty ?? 0) > 0 && `${formatNumber(r.suggestedRepressAmpedQty ?? 0)} AMPED`}
+                              </div>
+                            )}
                           </td>
                         )}
                         {variant === "overstock" && (

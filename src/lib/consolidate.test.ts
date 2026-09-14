@@ -183,6 +183,46 @@ describe("buildConsolidatedRows — repress quantity nets out inbound supply", (
   });
 });
 
+describe("buildConsolidatedRows — repress quantity splits across Proper/AMPED", () => {
+  it("splits proportionally to each region's own deficit when both need stock", () => {
+    const row = buildConsolidatedRows(
+      [properRow({ StockOnHand: 0, Sales_LastMonth: 10, Sales_2MonthsAgo: 10, Sales_3MonthsAgo: 10 })],
+      [ampedRow({ QAV: 0, "Avg/Week": 3 })], // ampedAvgMonthly = 3 * 4.333 ≈ 13/mo
+      T
+    )[0];
+    expect(row.suggestedRepressQty).toBe(138); // (10 + 13) * 6mo target
+    expect(row.suggestedRepressProperQty).toBe(60); // 10 * 6mo target, Proper's own deficit
+    expect(row.suggestedRepressAmpedQty).toBe(78); // 13 * 6mo target, AMPED's own deficit
+    expect((row.suggestedRepressProperQty ?? 0) + (row.suggestedRepressAmpedQty ?? 0)).toBe(row.suggestedRepressQty);
+  });
+
+  it("routes the whole repress quantity to Proper when AMPED has no distribution at all", () => {
+    const row = buildConsolidatedRows(
+      [properRow({ StockOnHand: 0, Sales_LastMonth: 20, Sales_2MonthsAgo: 20, Sales_3MonthsAgo: 20 })],
+      [ampedRow({ QAV: 0, "Avg/Week": 0 })],
+      T
+    )[0];
+    expect(row.suggestedRepressQty).toBe(120);
+    expect(row.suggestedRepressProperQty).toBe(120);
+    expect(row.suggestedRepressAmpedQty).toBe(0);
+  });
+
+  it("still routes the repress qty to Proper when AMPED's surplus reduced the combined total, not AMPED", () => {
+    // AMPED sits on a 250-unit surplus with no sales — that surplus lowers the
+    // combined repress figure, but the surplus itself lives at AMPED, not
+    // Proper, so none of the *new* units being pressed should ship there.
+    const row = buildConsolidatedRows(
+      [properRow({ StockOnHand: 0, Sales_LastMonth: 100, Sales_2MonthsAgo: 100, Sales_3MonthsAgo: 100 })],
+      [ampedRow({ QAV: 250, "Avg/Week": 0 })],
+      T
+    )[0];
+    expect(row.status).toBe("critical"); // combined: 250 stock / 100 per month = 2.5mo cover
+    expect(row.suggestedRepressQty).toBe(350); // 100*6 - 250 combined stock
+    expect(row.suggestedRepressProperQty).toBe(350);
+    expect(row.suggestedRepressAmpedQty).toBe(0);
+  });
+});
+
 describe("buildConsolidatedRows — rebalance suggestion", () => {
   it("flags a transfer when one region is critical and the other has confirmed surplus", () => {
     const rows = buildConsolidatedRows(
