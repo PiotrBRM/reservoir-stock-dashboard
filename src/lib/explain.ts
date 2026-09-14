@@ -61,22 +61,6 @@ export function explainRow(r: ConsolidatedRow, t: Thresholds): Explanation {
 
   const isRepress = recommendation.startsWith("Repress");
 
-  if (r.properBackorder > 0) {
-    if (r.status === "overstocked" || r.status === "dormant") {
-      // The status above is computed from a trailing sales rate that assumes
-      // stock was available to sell the whole time. A live backorder proves
-      // that's false — recent sales look low because there was nothing to
-      // sell, not because nobody wants it — so this status shouldn't be
-      // trusted at face value yet.
-      const unitWord = r.properBackorder === 1 ? "unit is" : "units are";
-      reasoning += ` Note: ${formatNumber(
-        r.properBackorder
-      )} ${unitWord} on backorder at Proper right now — that's confirmed unfulfilled demand, so recent sales figures likely understate how this is really selling, and this status may not hold once those are filled.`;
-    } else {
-      reasoning += ` ${formatNumber(r.properBackorder)} of that demand is already sitting on backorder at Proper.`;
-    }
-  }
-
   if (r.regionFlag) {
     const [from, to] = r.regionFlag === "shift_to_amped" ? ["Proper", "AMPED"] : ["AMPED", "Proper"];
     const transferNote = ` ${from} is sitting on more cover than ${to} needs — moving ~${formatNumber(

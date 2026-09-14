@@ -183,35 +183,6 @@ describe("buildConsolidatedRows — repress quantity nets out inbound supply", (
   });
 });
 
-describe("buildConsolidatedRows — Proper backorder passthrough", () => {
-  it("reads BackorderTotal from the source row onto properBackorder", () => {
-    const row = buildConsolidatedRows([properRow({ BackorderTotal: 31 })], [ampedRow()], T)[0];
-    expect(row.properBackorder).toBe(31);
-  });
-
-  it("defaults to 0 when the source row has no backorder value", () => {
-    const row = buildConsolidatedRows([properRow()], [ampedRow()], T)[0];
-    expect(row.properBackorder).toBe(0);
-  });
-
-  it("doesn't change the status classification itself — only the narrative reasoning does", () => {
-    // Same stock/velocity with and without a backorder value should classify identically;
-    // the backorder is a caveat layered on top in explain.ts, not a change to the math.
-    const withBackorder = buildConsolidatedRows(
-      [properRow({ StockOnHand: 500, Sales_LastMonth: 1, Sales_2MonthsAgo: 1, Sales_3MonthsAgo: 1, BackorderTotal: 31 })],
-      [ampedRow({ QAV: 0, "Avg/Week": 0 })],
-      T
-    )[0];
-    const withoutBackorder = buildConsolidatedRows(
-      [properRow({ StockOnHand: 500, Sales_LastMonth: 1, Sales_2MonthsAgo: 1, Sales_3MonthsAgo: 1, BackorderTotal: 0 })],
-      [ampedRow({ QAV: 0, "Avg/Week": 0 })],
-      T
-    )[0];
-    expect(withBackorder.status).toBe(withoutBackorder.status);
-    expect(withBackorder.monthsOfCover).toBe(withoutBackorder.monthsOfCover);
-  });
-});
-
 describe("buildConsolidatedRows — rebalance suggestion", () => {
   it("flags a transfer when one region is critical and the other has confirmed surplus", () => {
     const rows = buildConsolidatedRows(

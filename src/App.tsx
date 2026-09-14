@@ -83,11 +83,7 @@ export default function StockDashboard() {
     const rebalanceRows = viewRows.filter((r) => r.regionFlag !== null);
     const excessValue = overstockRows.reduce((sum, r) => sum + (r.excessValue || 0), 0);
     const monthlyHoldingCost = overstockRows.reduce((sum, r) => sum + (r.excessHoldingCostPerMonth || 0), 0);
-    // A live backorder means the trailing sales rate behind this status is
-    // understated (nothing to sell, not nothing wanted) — worth flagging at
-    // the KPI level since it affects how much to trust the headline count.
-    const overstockBackorderCount = overstockRows.filter((r) => r.properBackorder > 0).length;
-    return { totalUnits, repressRows, overstockRows, rebalanceRows, excessValue, monthlyHoldingCost, overstockBackorderCount };
+    return { totalUnits, repressRows, overstockRows, rebalanceRows, excessValue, monthlyHoldingCost };
   }, [viewRows]);
 
   const repressRows = useMemo(
@@ -124,7 +120,6 @@ export default function StockDashboard() {
       "Proper Stock": r.properStock,
       "Proper Months Cover": r.properMonthsOfCover ?? "N/A",
       "Proper On Order": r.properOnOrder,
-      "Proper Backorder": r.properBackorder,
       "Proper Sales 3mo ago": r.properMonthlySales[2],
       "Proper Sales 2mo ago": r.properMonthlySales[1],
       "Proper Sales last mo": r.properMonthlySales[0],
@@ -341,12 +336,9 @@ export default function StockDashboard() {
                 label="Overstocked"
                 value={formatNumber(kpis.overstockRows.length)}
                 sublabel={
-                  (kpis.monthlyHoldingCost > 0
+                  kpis.monthlyHoldingCost > 0
                     ? `${formatMoney(kpis.monthlyHoldingCost)}/mo holding cost`
-                    : `${formatMoney(kpis.excessValue)} tied up`) +
-                  (kpis.overstockBackorderCount > 0
-                    ? ` · ${formatNumber(kpis.overstockBackorderCount)} have backorders — may not really be overstocked`
-                    : "")
+                    : `${formatMoney(kpis.excessValue)} tied up`
                 }
                 accent="warning"
               />

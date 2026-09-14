@@ -203,12 +203,6 @@ export function buildConsolidatedRows(
       : [];
     const ampedOnOrder = ampedMatch ? getNumericValue(ampedMatch.QOO) : 0;
     const properOnOrder = getNumericValue(row.OnOrder);
-    // Confirmed unfulfilled demand at Proper — direct evidence that a low
-    // trailing sales rate reflects "nothing to sell", not "nobody wants it".
-    // No AMPED equivalent is used here: its closest-looking field ("Open
-    // Orders") doesn't correlate with stockouts the way this one does, so
-    // it isn't trustworthy as the same signal without confirming its meaning.
-    const properBackorder = getNumericValue(row.BackorderTotal);
 
     // Proper: 3-month average monthly sales
     const salesLastMonth = getNumericValue(row.Sales_LastMonth);
@@ -336,7 +330,6 @@ export function buildConsolidatedRows(
       properOnOrder,
       ampedWeeklySales,
       ampedOnOrder,
-      properBackorder,
     });
   }
 
