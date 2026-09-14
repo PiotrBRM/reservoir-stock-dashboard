@@ -3,7 +3,7 @@ import type { ConsolidatedRow, StockStatus } from "../types";
 import { STATUS_STYLE } from "../lib/statusStyle";
 import { formatNumber } from "../lib/format";
 
-const ORDER: StockStatus[] = ["stockout", "critical", "overstocked", "dormant", "healthy"];
+const ORDER: StockStatus[] = ["stockout", "critical", "overstocked", "dormant", "healthy", "deleted"];
 
 export default function PortfolioHealthBar({ rows }: { rows: ConsolidatedRow[] }) {
   const total = rows.length || 1;

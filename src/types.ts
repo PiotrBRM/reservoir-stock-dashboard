@@ -1,13 +1,13 @@
 // src/types.ts
 
-export type StockStatus = "stockout" | "critical" | "healthy" | "overstocked" | "dormant";
+export type StockStatus = "stockout" | "critical" | "healthy" | "overstocked" | "dormant" | "deleted";
 
 export type CatalogueView = "combined" | "frontline" | "catalogue";
 
 /** Proper LabelName values that define the Frontline / Catalogue split. */
-export const VIEW_LABEL_NAME: Record<Exclude<CatalogueView, "combined">, string> = {
-  frontline: "CHRYSALIS FRONTLINE",
-  catalogue: "CHRYSALIS RECORDS",
+export const VIEW_LABEL_NAMES: Record<Exclude<CatalogueView, "combined">, string[]> = {
+  frontline: ["CHRYSALIS FRONTLINE", "IDAHO RECORDS"],
+  catalogue: ["CHRYSALIS RECORDS", "BUZZIN FLY RECORDS LTD", "TWO TONE RECORDS"],
 };
 
 export interface Thresholds {
@@ -86,4 +86,13 @@ export interface ConsolidatedRow {
   /** Last 8 weeks at AMPED, oldest first. */
   ampedWeeklySales: number[];
   ampedOnOrder: number;
+
+  /**
+   * Proper's DeletionType code (1-4), or null if this title isn't deleted.
+   * When set, `status` is always "deleted" — repress/rebalance suggestions
+   * don't apply regardless of what the stock/velocity math would otherwise say.
+   */
+  deletionType: 1 | 2 | 3 | 4 | null;
+  /** Date Proper marked this deleted, if known. */
+  deletedDate: string;
 }

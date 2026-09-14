@@ -1,5 +1,6 @@
 // src/lib/explain.ts
 import type { ConsolidatedRow, Thresholds } from "./../types";
+import { DELETION_TYPE_META } from "./deletionType";
 import { formatMoney, formatNumber } from "./format";
 
 export interface Explanation {
@@ -52,6 +53,16 @@ export function explainRow(r: ConsolidatedRow, t: Thresholds): Explanation {
         )} units are sitting in stock, but neither distributor has recorded a sale in the lookback window, so there's no sales rate to project a repress or rebalance from.`;
       }
       break;
+    case "deleted": {
+      const meta = r.deletionType ? DELETION_TYPE_META[r.deletionType] : null;
+      recommendation = meta && meta.canSell ? "Sell through remaining stock" : "No repress — sell down or scrap";
+      reasoning = `This title has been deleted from the catalogue${
+        r.deletedDate ? ` (${r.deletedDate})` : ""
+      }. ${formatNumber(r.combinedStock)} units remain in stock${
+        meta ? ` — ${meta.label.toLowerCase()}` : ""
+      }. Repress and rebalance suggestions don't apply to deleted titles.`;
+      break;
+    }
     default:
       recommendation = "No action needed";
       reasoning = `Selling about ${velocity} units a month combined, the ${formatNumber(

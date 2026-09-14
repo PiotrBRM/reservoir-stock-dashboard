@@ -9,6 +9,7 @@
 // tool itself.
 import { Circle, Document, Page, Rect, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
 import type { CatalogueView, ConsolidatedRow, StockStatus, Thresholds } from "../types";
+import { DELETION_TYPE_META } from "./deletionType";
 import { explainRow } from "./explain";
 import { formatMoney, formatNumber } from "./format";
 
@@ -40,6 +41,7 @@ const STATUS_META: Record<StockStatus, { label: string; color: string; bg: strin
   healthy: { label: "Healthy", color: COLOR.good, bg: COLOR.goodSoft },
   overstocked: { label: "Overstocked", color: COLOR.warning, bg: COLOR.warningSoft },
   dormant: { label: "Dormant", color: COLOR.inkMuted, bg: "#f1f5f9" },
+  deleted: { label: "Deleted", color: COLOR.inkMuted, bg: "#f1f5f9" },
 };
 
 const VIEW_LABEL: Record<CatalogueView, string> = {
@@ -48,7 +50,7 @@ const VIEW_LABEL: Record<CatalogueView, string> = {
   catalogue: "Catalogue",
 };
 
-const STATUS_ORDER: StockStatus[] = ["stockout", "critical", "overstocked", "dormant", "healthy"];
+const STATUS_ORDER: StockStatus[] = ["stockout", "critical", "overstocked", "dormant", "healthy", "deleted"];
 
 // A4 width (595.28pt) minus the page's horizontal padding (32pt each side).
 // Colored bars use absolute point widths throughout this file rather than
@@ -208,6 +210,18 @@ function ReleaseCard({ row, thresholds }: { row: ConsolidatedRow; thresholds: Th
           <Text style={styles.cardFooterLabel}>Stock value: </Text>
           {row.stockValue ? formatMoney(row.stockValue) : "—"}
         </Text>
+        {row.status === "deleted" && (
+          <>
+            <Text style={styles.cardFooterItem}>
+              <Text style={styles.cardFooterLabel}>Deletion type: </Text>
+              {row.deletionType ? DELETION_TYPE_META[row.deletionType].label : "—"}
+            </Text>
+            <Text style={styles.cardFooterItem}>
+              <Text style={styles.cardFooterLabel}>Units remaining: </Text>
+              {formatNumber(row.combinedStock)}
+            </Text>
+          </>
+        )}
       </View>
     </View>
   );
@@ -248,6 +262,7 @@ interface ReportPdfProps {
   rebalanceRows: ConsolidatedRow[];
   overstockRows: ConsolidatedRow[];
   dormantRows: ConsolidatedRow[];
+  deletedRows: ConsolidatedRow[];
   properFileName: string | null;
   properRowCount: number;
   ampedRowCount: number;
@@ -262,6 +277,7 @@ export function ReportPdfDocument({
   rebalanceRows,
   overstockRows,
   dormantRows,
+  deletedRows,
   properFileName,
   properRowCount,
   ampedRowCount,
@@ -401,6 +417,12 @@ export function ReportPdfDocument({
           title="Dormant — no recent sales"
           note="No sales velocity to project a repress or rebalance from, sorted by stock held."
           rows={dormantRows}
+          thresholds={thresholds}
+        />
+        <ReportSection
+          title="Deleted"
+          note="Pulled from the catalogue but still holding stock somewhere, sorted by stock held. Repress and rebalance suggestions don't apply."
+          rows={deletedRows}
           thresholds={thresholds}
         />
 

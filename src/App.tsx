@@ -1,9 +1,9 @@
 // src/App.tsx
 import { useMemo, useState } from "react";
-import { AlertCircle, AlertTriangle, Archive, ArrowLeftRight, Boxes, FileDown, OctagonAlert } from "lucide-react";
+import { AlertCircle, AlertTriangle, Archive, ArrowLeftRight, Boxes, FileDown, OctagonAlert, Trash2 } from "lucide-react";
 
 import type { CatalogueView, Thresholds } from "./types";
-import { DEFAULT_THRESHOLDS, VIEW_LABEL_NAME } from "./types";
+import { DEFAULT_THRESHOLDS, VIEW_LABEL_NAMES } from "./types";
 import { buildConsolidatedRows } from "./lib/consolidate";
 import { readCSVFile, readExcelFile } from "./lib/fileReaders";
 import { formatMoney, formatNumber } from "./lib/format";
@@ -64,8 +64,8 @@ export default function StockDashboard() {
   const viewCounts = useMemo(
     () => ({
       combined: consolidated.length,
-      frontline: consolidated.filter((r) => r.labelName === VIEW_LABEL_NAME.frontline).length,
-      catalogue: consolidated.filter((r) => r.labelName === VIEW_LABEL_NAME.catalogue).length,
+      frontline: consolidated.filter((r) => VIEW_LABEL_NAMES.frontline.includes(r.labelName)).length,
+      catalogue: consolidated.filter((r) => VIEW_LABEL_NAMES.catalogue.includes(r.labelName)).length,
     }),
     [consolidated]
   );
@@ -73,7 +73,7 @@ export default function StockDashboard() {
   // The active view scopes everything below it — KPIs, alerts, and the detail table.
   const viewRows = useMemo(() => {
     if (view === "combined") return consolidated;
-    return consolidated.filter((r) => r.labelName === VIEW_LABEL_NAME[view]);
+    return consolidated.filter((r) => VIEW_LABEL_NAMES[view].includes(r.labelName));
   }, [consolidated, view]);
 
   const kpis = useMemo(() => {
@@ -103,6 +103,11 @@ export default function StockDashboard() {
 
   const dormantRows = useMemo(
     () => viewRows.filter((r) => r.status === "dormant").sort((a, b) => b.combinedStock - a.combinedStock),
+    [viewRows]
+  );
+
+  const deletedRows = useMemo(
+    () => viewRows.filter((r) => r.status === "deleted").sort((a, b) => b.combinedStock - a.combinedStock),
     [viewRows]
   );
 
@@ -164,6 +169,7 @@ export default function StockDashboard() {
           rebalanceRows={rebalanceRows}
           overstockRows={overstockRows}
           dormantRows={dormantRows}
+          deletedRows={deletedRows}
           properFileName={properFileName}
           properRowCount={source1Data.length}
           ampedRowCount={source2Data.length}
@@ -386,6 +392,17 @@ export default function StockDashboard() {
                 rows={dormantRows}
                 thresholds={thresholds}
                 emptyMessage="No dormant stock."
+                defaultVisible={5}
+              />
+              <AlertTable
+                title="Deleted"
+                description="Pulled from the catalogue — shown only while stock remains somewhere."
+                icon={Trash2}
+                accent="slate"
+                variant="deleted"
+                rows={deletedRows}
+                thresholds={thresholds}
+                emptyMessage="No deleted titles with remaining stock."
                 defaultVisible={5}
               />
             </section>

@@ -1,5 +1,5 @@
 // src/lib/statusStyle.ts
-import { AlertTriangle, CheckCircle2, CircleDashed, OctagonAlert, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CircleDashed, OctagonAlert, Trash2, XCircle } from "lucide-react";
 import type { StockStatus } from "../types";
 
 /**
@@ -49,5 +49,13 @@ export const STATUS_STYLE: Record<
     bg: "bg-slate-100",
     border: "border-slate-200",
     fill: "bg-slate-300",
+  },
+  deleted: {
+    label: "Deleted",
+    icon: Trash2,
+    text: "text-slate-500",
+    bg: "bg-slate-100",
+    border: "border-slate-200",
+    fill: "bg-slate-400",
   },
 };

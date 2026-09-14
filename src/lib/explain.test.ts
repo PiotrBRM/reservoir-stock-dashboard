@@ -39,6 +39,8 @@ function row(overrides: Partial<ConsolidatedRow> = {}): ConsolidatedRow {
     properOnOrder: 0,
     ampedWeeklySales: [],
     ampedOnOrder: 0,
+    deletionType: null,
+    deletedDate: "",
     ...overrides,
   };
 }
@@ -90,5 +92,19 @@ describe("explainRow", () => {
 
     const tooLow = explainRow(row({ status: "dormant", combinedVelocity: 2 }), T);
     expect(tooLow.recommendation).toMatch(/too low to trust/);
+  });
+
+  it("describes a deleted title by its deletion type and remaining stock, not repress math", () => {
+    const sellable = explainRow(
+      row({ status: "deleted", deletionType: 2, deletedDate: "2023-12-12", combinedStock: 5 }),
+      T
+    );
+    expect(sellable.recommendation).toMatch(/sell through/i);
+    expect(sellable.reasoning).toMatch(/2023-12-12/);
+    expect(sellable.reasoning).toMatch(/can sell — returning to label/i);
+
+    const unsellable = explainRow(row({ status: "deleted", deletionType: 4, combinedStock: 14 }), T);
+    expect(unsellable.recommendation).not.toMatch(/^Repress/i);
+    expect(unsellable.reasoning).toMatch(/cannot sell — not returning to label/i);
   });
 });

@@ -164,7 +164,6 @@ export function buildConsolidatedRows(
   for (const row of properRows) {
     if (isExcludedLabel(row.LabelName) || isExcludedLabel(row.SubLabelName)) continue;
     if (isExcludedArtist(row.Artist)) continue;
-    if (row.Title && String(row.Title).toUpperCase().includes("DELETED")) continue;
 
     // Clamped at 0 — a negative source value (returns-in-transit, overselling
     // artifacts) isn't physical stock, and left unclamped it corrupts every
@@ -219,6 +218,18 @@ export function buildConsolidatedRows(
     if (properStock === 0 && ampedStock === 0 && properAvgMonthly === 0 && ampedAvgMonthly === 0) continue;
 
     const combinedStock = properStock + ampedStock;
+
+    // Proper's DeletionType (1-4) marks a title as pulled from the catalogue.
+    // A deleted title with nothing left anywhere isn't worth reporting — but
+    // one still holding stock somewhere must stay visible regardless of its
+    // sales velocity, since deletion pulls it out of the normal repress/
+    // rebalance workflow entirely rather than depending on how it's selling.
+    const deletionTypeRaw = getNumericValue(row.DeletionType);
+    const deletionType: 1 | 2 | 3 | 4 | null =
+      deletionTypeRaw >= 1 && deletionTypeRaw <= 4 ? (deletionTypeRaw as 1 | 2 | 3 | 4) : null;
+    const deletedDate = String(row.DeletedDate || "").trim();
+    if (deletionType !== null && combinedStock === 0) continue;
+
     const combinedVelocity = Math.round((properAvgMonthly + ampedAvgMonthly) * 100) / 100;
     const monthsOfCover =
       combinedVelocity > 0 ? Math.max(0, Math.round((combinedStock / combinedVelocity) * 10) / 10) : null;
@@ -226,7 +237,11 @@ export function buildConsolidatedRows(
     const unitPrice = getNumericValue(row.UKDealer);
     const stockValue = Math.round(combinedStock * unitPrice * 100) / 100;
 
-    const status = classifyStatus(combinedStock, combinedVelocity, thresholds);
+    // A deleted title's status is "deleted" regardless of what the stock/
+    // velocity math says — set before the repress/overstock blocks below so
+    // their `status === ...` checks naturally skip it, no separate guard needed.
+    let status: StockStatus = classifyStatus(combinedStock, combinedVelocity, thresholds);
+    if (deletionType !== null) status = "deleted";
 
     let suggestedRepressQty: number | null = null;
     let excessUnits: number | null = null;
@@ -274,8 +289,10 @@ export function buildConsolidatedRows(
     // Only suggest a cross-region transfer when this title actually has a
     // confirmed AMPED counterpart. Without a match, "0 stock / 0 sales" just
     // means "no AMPED data for this title" (e.g. never distributed in NA) —
-    // not a genuine surplus to draw from.
-    if (ampedMatch) {
+    // not a genuine surplus to draw from. Deleted titles don't get rebalance
+    // suggestions either — moving stock between warehouses isn't the point
+    // once a title has been pulled from the catalogue.
+    if (deletionType === null && ampedMatch) {
       if (isNeedy(ampedStatus) && isSurplus(properStatus) && properStock > 0) {
         const deficit = Math.max(0, ampedAvgMonthly * thresholds.restockTargetMonths - ampedStock);
         const surplus = Math.max(0, properStock - properAvgMonthly * thresholds.highMonths);
@@ -330,6 +347,8 @@ export function buildConsolidatedRows(
       properOnOrder,
       ampedWeeklySales,
       ampedOnOrder,
+      deletionType,
+      deletedDate,
     });
   }
 

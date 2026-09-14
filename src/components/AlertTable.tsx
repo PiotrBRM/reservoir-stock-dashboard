@@ -9,8 +9,9 @@ import CoverMeter from "./CoverMeter";
 import RegionBars from "./RegionBars";
 import ReleaseDetailPanel from "./ReleaseDetailPanel";
 import { formatMoney, formatNumber } from "../lib/format";
+import { DELETION_TYPE_META } from "../lib/deletionType";
 
-type Variant = "repress" | "overstock" | "dormant" | "rebalance";
+type Variant = "repress" | "overstock" | "dormant" | "rebalance" | "deleted";
 
 interface AlertTableProps {
   title: string;
@@ -60,8 +61,16 @@ export default function AlertTable({
 
   const colCount =
     4 + // Status, Release, Format, Proper/AMPED bars
-    (variant !== "dormant" ? 1 : 0) + // Combined cover
-    (variant === "repress" ? 1 : variant === "overstock" ? 2 : variant === "rebalance" ? 2 : 0) +
+    (variant !== "dormant" && variant !== "deleted" ? 1 : 0) + // Combined cover
+    (variant === "repress"
+      ? 1
+      : variant === "overstock"
+      ? 2
+      : variant === "rebalance"
+      ? 2
+      : variant === "deleted"
+      ? 2
+      : 0) +
     1; // chevron
 
   return (
@@ -87,7 +96,9 @@ export default function AlertTable({
                   <th className="px-4 py-2 text-left font-medium">Release</th>
                   <th className="px-4 py-2 text-left font-medium">Format</th>
                   <th className="px-4 py-2 text-left font-medium">Proper vs AMPED</th>
-                  {variant !== "dormant" && <th className="px-4 py-2 text-left font-medium">Combined cover</th>}
+                  {variant !== "dormant" && variant !== "deleted" && (
+                    <th className="px-4 py-2 text-left font-medium">Combined cover</th>
+                  )}
                   {variant === "repress" && <th className="px-4 py-2 text-right font-medium">Suggested repress</th>}
                   {variant === "overstock" && (
                     <>
@@ -99,6 +110,12 @@ export default function AlertTable({
                     <>
                       <th className="px-4 py-2 text-left font-medium">Move</th>
                       <th className="px-4 py-2 text-right font-medium">Suggested transfer</th>
+                    </>
+                  )}
+                  {variant === "deleted" && (
+                    <>
+                      <th className="px-4 py-2 text-left font-medium">Deletion type</th>
+                      <th className="px-4 py-2 text-right font-medium">Units remaining</th>
                     </>
                   )}
                   <th className="w-8" />
@@ -130,10 +147,10 @@ export default function AlertTable({
                             ampedStock={r.ampedStock}
                             properStatus={r.properStatus}
                             ampedStatus={r.ampedStatus}
-                            showValues={false}
+                            showValues={variant === "deleted"}
                           />
                         </td>
-                        {variant !== "dormant" && (
+                        {variant !== "dormant" && variant !== "deleted" && (
                           <td className="px-4 py-2">
                             <CoverMeter
                               months={r.monthsOfCover}
@@ -173,6 +190,16 @@ export default function AlertTable({
                             </td>
                             <td className="px-4 py-2 text-right font-semibold text-proper tabular-nums">
                               {r.suggestedTransferQty !== null ? formatNumber(r.suggestedTransferQty) : "—"}
+                            </td>
+                          </>
+                        )}
+                        {variant === "deleted" && (
+                          <>
+                            <td className="px-4 py-2 text-slate-600">
+                              {r.deletionType ? DELETION_TYPE_META[r.deletionType].label : "—"}
+                            </td>
+                            <td className="px-4 py-2 text-right font-semibold text-slate-700 tabular-nums">
+                              {formatNumber(r.combinedStock)}
                             </td>
                           </>
                         )}

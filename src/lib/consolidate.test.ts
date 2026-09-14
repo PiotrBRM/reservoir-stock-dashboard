@@ -81,9 +81,9 @@ describe("buildConsolidatedRows — filtering", () => {
     expect(rows).toHaveLength(0);
   });
 
-  it("excludes titles marked DELETED", () => {
+  it("does not hide a title just because its name contains the word DELETED — only DeletionType decides that", () => {
     const rows = buildConsolidatedRows([properRow({ Title: "DELETED - TEST TITLE" })], [ampedRow()], T);
-    expect(rows).toHaveLength(0);
+    expect(rows).toHaveLength(1);
   });
 
   it("hides a title with truly zero stock and zero sales everywhere", () => {
@@ -196,5 +196,73 @@ describe("buildConsolidatedRows — rebalance suggestion", () => {
     expect(row.suggestedTransferQty).toBeGreaterThan(0);
     // A transfer doesn't add stock to the system, so it must not reduce the repress figure.
     expect(row.suggestedRepressQty).toBeGreaterThan(0);
+  });
+});
+
+describe("buildConsolidatedRows — deletion tracking", () => {
+  it("excludes a deleted title once nothing remains in stock anywhere", () => {
+    const rows = buildConsolidatedRows(
+      [properRow({ DeletionType: 4, StockOnHand: 0, Sales_LastMonth: 0, Sales_2MonthsAgo: 0, Sales_3MonthsAgo: 0 })],
+      [ampedRow({ QAV: 0, "Avg/Week": 0 })],
+      T
+    );
+    expect(rows).toHaveLength(0);
+  });
+
+  it("keeps a deleted title while Proper still holds stock, forcing status to deleted regardless of velocity", () => {
+    const rows = buildConsolidatedRows(
+      [properRow({ DeletionType: 2, DeletedDate: "2023-12-12", StockOnHand: 5, Sales_LastMonth: 50, Sales_2MonthsAgo: 50, Sales_3MonthsAgo: 50 })],
+      [ampedRow({ QAV: 0, "Avg/Week": 0 })],
+      T
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("deleted");
+    expect(rows[0].deletionType).toBe(2);
+    expect(rows[0].deletedDate).toBe("2023-12-12");
+    expect(rows[0].suggestedRepressQty).toBeNull();
+  });
+
+  it("keeps a deleted title while only AMPED still holds stock", () => {
+    const rows = buildConsolidatedRows(
+      [properRow({ DeletionType: 1, StockOnHand: 0, Sales_LastMonth: 0, Sales_2MonthsAgo: 0, Sales_3MonthsAgo: 0 })],
+      [ampedRow({ QAV: 8, "Avg/Week": 0 })],
+      T
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("deleted");
+  });
+
+  it("suppresses rebalance suggestions for deleted titles even with a region imbalance", () => {
+    const rows = buildConsolidatedRows(
+      [properRow({ DeletionType: 3, StockOnHand: 0, Sales_LastMonth: 200, Sales_2MonthsAgo: 200, Sales_3MonthsAgo: 200 })],
+      [ampedRow({ QAV: 310, "Avg/Week": 0.23 })],
+      T
+    );
+    expect(rows[0].status).toBe("deleted");
+    expect(rows[0].regionFlag).toBeNull();
+    expect(rows[0].suggestedTransferQty).toBeNull();
+  });
+
+  it("leaves a non-deleted title's status untouched (no DeletionType present)", () => {
+    const rows = buildConsolidatedRows([properRow()], [ampedRow()], T);
+    expect(rows[0].deletionType).toBeNull();
+    expect(rows[0].status).not.toBe("deleted");
+  });
+});
+
+describe("buildConsolidatedRows — expanded Frontline/Catalogue label sets", () => {
+  it.each(["BUZZIN FLY RECORDS LTD", "TWO TONE RECORDS", "CHRYSALIS RECORDS"])(
+    "keeps %s under its own labelName, unaffected by the exclusion list",
+    (label) => {
+      const rows = buildConsolidatedRows([properRow({ LabelName: label })], [ampedRow()], T);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].labelName).toBe(label);
+    }
+  );
+
+  it.each(["IDAHO RECORDS", "CHRYSALIS FRONTLINE"])("keeps %s under its own labelName", (label) => {
+    const rows = buildConsolidatedRows([properRow({ LabelName: label })], [ampedRow()], T);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].labelName).toBe(label);
   });
 });
