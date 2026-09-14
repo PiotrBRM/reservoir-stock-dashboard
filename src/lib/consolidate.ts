@@ -10,9 +10,17 @@ const EXCLUDED_LABELS = [
   "RASA MUSIC",
   "RESERVOIR RECORDINGS",
   "RAMBLIN RECORDS",
+  "RAMBLIN' RECORDS",
   "DEF JAM",
   "UNIVERSAL",
   "WARNER",
+  // Out of scope for this tool — only Frontline/Catalogue labels are tracked,
+  // so Combined (which is just "every row this tool tracks") doesn't pick up
+  // titles under other imprints that neither view recognizes.
+  "NACIONAL",
+  "NEW STATE",
+  "PAINTED DESERT RECORDS",
+  "EASY STREET RECORDS",
 ];
 const EXCLUDED_ARTISTS = ["DE LA SOUL", "THE MARSHALL TUCKER BAND", "THE COOL KIDS"];
 // =========================================

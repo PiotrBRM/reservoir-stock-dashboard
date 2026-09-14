@@ -81,6 +81,14 @@ describe("buildConsolidatedRows — filtering", () => {
     expect(rows).toHaveLength(0);
   });
 
+  it.each(["NACIONAL", "NEW STATE", "PAINTED DESERT RECORDS", "EASY STREET RECORDS", "RAMBLIN' RECORDS"])(
+    "excludes label %s — out of scope since it's neither Frontline nor Catalogue, so Combined stays exactly their union",
+    (label) => {
+      const rows = buildConsolidatedRows([properRow({ LabelName: label })], [ampedRow()], T);
+      expect(rows).toHaveLength(0);
+    }
+  );
+
   it("does not hide a title just because its name contains the word DELETED — only DeletionType decides that", () => {
     const rows = buildConsolidatedRows([properRow({ Title: "DELETED - TEST TITLE" })], [ampedRow()], T);
     expect(rows).toHaveLength(1);
