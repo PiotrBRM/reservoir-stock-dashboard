@@ -48,6 +48,10 @@ export default function ReleaseDetailPanel({ row, thresholds }: { row: Consolida
 
   return (
     <div className="bg-slate-50/70 p-5 flex flex-col gap-4">
+      <div className="text-xs text-slate-400">
+        {row.format} · Cat No: {row.catalogNo || "—"} · Barcode: {row.barcode || "—"}
+      </div>
+
       <div className="rounded-lg border border-proper/20 bg-proper-soft p-3.5">
         <div className="flex items-center gap-2 mb-1">
           <StatusBadge status={row.status} />

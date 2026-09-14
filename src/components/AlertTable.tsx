@@ -110,7 +110,7 @@ export default function AlertTable({
                 <tr>
                   <th className="px-4 py-2 text-left font-medium">Status</th>
                   <th className="px-4 py-2 text-left font-medium">Release</th>
-                  <th className="px-4 py-2 text-left font-medium">Format</th>
+                  <th className="px-4 py-2 text-left font-medium">Cat No</th>
                   <th className="px-4 py-2 text-left font-medium">Proper vs AMPED</th>
                   {variant !== "dormant" && variant !== "deleted" && (
                     <th className="px-4 py-2 text-left font-medium">Combined cover</th>
@@ -156,7 +156,10 @@ export default function AlertTable({
                           <div className="font-medium text-slate-800 truncate max-w-[14rem]">{r.title}</div>
                           <div className="text-xs text-slate-400 truncate max-w-[14rem]">{r.artist}</div>
                         </td>
-                        <td className="px-4 py-2 text-slate-500">{r.format}</td>
+                        <td className="px-4 py-2">
+                          <div className="text-slate-700 font-medium">{r.catalogNo || "—"}</div>
+                          <div className="text-xs text-slate-400">{r.format}</div>
+                        </td>
                         <td className="px-4 py-2">
                           <RegionBars
                             properStock={r.properStock}
