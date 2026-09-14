@@ -5,6 +5,7 @@ import type { ConsolidatedRow, Thresholds } from "../types";
 import StatusBadge from "./StatusBadge";
 import CoverMeter from "./CoverMeter";
 import ReleaseDetailPanel from "./ReleaseDetailPanel";
+import BackorderNote from "./BackorderNote";
 import { formatMoney, formatNumber } from "../lib/format";
 
 type Group = "release" | "proper" | "amped" | "combined" | "value";
@@ -31,7 +32,12 @@ const COLUMNS: Column[] = [
     key: "status",
     label: "Status",
     group: "release",
-    render: (r) => <StatusBadge status={r.status} />,
+    render: (r) => (
+      <>
+        <StatusBadge status={r.status} />
+        <BackorderNote units={r.properBackorder} />
+      </>
+    ),
     sortValue: (r) => r.status,
   },
   { key: "artist", label: "Artist", group: "release", render: (r) => r.artist, sortValue: (r) => r.artist },

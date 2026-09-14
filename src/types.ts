@@ -86,4 +86,11 @@ export interface ConsolidatedRow {
   /** Last 8 weeks at AMPED, oldest first. */
   ampedWeeklySales: number[];
   ampedOnOrder: number;
+  /**
+   * Units currently on backorder at Proper — confirmed unfulfilled demand.
+   * A nonzero value here means recent sales figures likely understate real
+   * demand (there was nothing to sell), which matters most when it's what's
+   * making a title look overstocked or dormant rather than in-demand.
+   */
+  properBackorder: number;
 }

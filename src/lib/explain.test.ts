@@ -39,6 +39,7 @@ function row(overrides: Partial<ConsolidatedRow> = {}): ConsolidatedRow {
     properOnOrder: 0,
     ampedWeeklySales: [],
     ampedOnOrder: 0,
+    properBackorder: 0,
     ...overrides,
   };
 }
@@ -90,5 +91,37 @@ describe("explainRow", () => {
 
     const tooLow = explainRow(row({ status: "dormant", combinedVelocity: 2 }), T);
     expect(tooLow.recommendation).toMatch(/too low to trust/);
+  });
+
+  it("warns that overstocked/dormant may be unreliable when Proper has a live backorder", () => {
+    const overstocked = explainRow(
+      row({ status: "overstocked", combinedVelocity: 1, combinedStock: 500, monthsOfCover: 500, excessUnits: 494, properBackorder: 31 }),
+      T
+    );
+    expect(overstocked.reasoning).toMatch(/31 units are on backorder/);
+    expect(overstocked.reasoning).toMatch(/may not hold once those are filled/);
+
+    const dormant = explainRow(row({ status: "dormant", combinedVelocity: 0, properBackorder: 9 }), T);
+    expect(dormant.reasoning).toMatch(/9 units are on backorder/);
+  });
+
+  it("treats a backorder as reinforcing evidence (not a caveat) when already flagged critical", () => {
+    const r = row({
+      status: "critical",
+      combinedVelocity: 20,
+      combinedStock: 10,
+      monthsOfCover: 0.5,
+      suggestedRepressQty: 110,
+      properBackorder: 36,
+    });
+    const { reasoning } = explainRow(r, T);
+    expect(reasoning).toMatch(/36 of that demand is already sitting on backorder/);
+    expect(reasoning).not.toMatch(/may not hold/);
+  });
+
+  it("says nothing about backorders when there are none", () => {
+    const r = row({ status: "overstocked", combinedVelocity: 1, combinedStock: 500, monthsOfCover: 500, properBackorder: 0 });
+    const { reasoning } = explainRow(r, T);
+    expect(reasoning).not.toMatch(/backorder/);
   });
 });

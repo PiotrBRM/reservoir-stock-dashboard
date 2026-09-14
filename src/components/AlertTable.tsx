@@ -8,6 +8,7 @@ import StatusBadge from "./StatusBadge";
 import CoverMeter from "./CoverMeter";
 import RegionBars from "./RegionBars";
 import ReleaseDetailPanel from "./ReleaseDetailPanel";
+import BackorderNote from "./BackorderNote";
 import { formatMoney, formatNumber } from "../lib/format";
 
 type Variant = "repress" | "overstock" | "dormant" | "rebalance";
@@ -118,6 +119,7 @@ export default function AlertTable({
                       >
                         <td className="px-4 py-2">
                           <StatusBadge status={r.status} />
+                          <BackorderNote units={r.properBackorder} />
                         </td>
                         <td className="px-4 py-2">
                           <div className="font-medium text-slate-800 truncate max-w-[14rem]">{r.title}</div>

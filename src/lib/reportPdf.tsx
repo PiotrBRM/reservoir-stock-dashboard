@@ -182,6 +182,9 @@ function ReleaseCard({ row, thresholds }: { row: ConsolidatedRow; thresholds: Th
           <Text style={styles.regionStock}>{formatNumber(row.properStock)} units</Text>
           <CoverBar months={row.properMonthsOfCover} status={row.properStatus} thresholds={thresholds} />
           {row.properOnOrder > 0 && <Text style={styles.regionNote}>+{formatNumber(row.properOnOrder)} on order</Text>}
+          {row.properBackorder > 0 && (
+            <Text style={styles.regionNote}>{formatNumber(row.properBackorder)} on backorder</Text>
+          )}
         </View>
         <View style={[styles.regionBox, { backgroundColor: COLOR.ampedSoft }]}>
           <Text style={[styles.regionLabel, { color: COLOR.amped }]}>AMPED</Text>
