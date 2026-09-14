@@ -1,7 +1,7 @@
 // src/components/AlertTable.tsx
 import { Fragment, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { ArrowRight, ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronRight, ChevronUp, Download } from "lucide-react";
 import type { ConsolidatedRow } from "../types";
 import type { Thresholds } from "../types";
 import StatusBadge from "./StatusBadge";
@@ -23,6 +23,8 @@ interface AlertTableProps {
   thresholds: Thresholds;
   emptyMessage: string;
   defaultVisible?: number;
+  /** When provided, shows a button in the section header that exports just this section as a spreadsheet. */
+  onDownload?: () => void;
 }
 
 const ACCENT_HEADER: Record<AlertTableProps["accent"], string> = {
@@ -44,6 +46,7 @@ export default function AlertTable({
   thresholds,
   emptyMessage,
   defaultVisible = 6,
+  onDownload,
 }: AlertTableProps) {
   const [showAll, setShowAll] = useState(false);
   const [openRows, setOpenRows] = useState<Set<string>>(new Set());
@@ -75,13 +78,26 @@ export default function AlertTable({
 
   return (
     <section className="rounded-xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-      <div className="px-5 py-3 border-b border-slate-100">
-        <div className={`flex items-center gap-2 font-semibold text-sm ${ACCENT_HEADER[accent]}`}>
-          <Icon className="w-4 h-4" />
-          {title}
-          <span className="text-slate-400 font-normal">({rows.length})</span>
+      <div className="px-5 py-3 border-b border-slate-100 flex items-start justify-between gap-3">
+        <div>
+          <div className={`flex items-center gap-2 font-semibold text-sm ${ACCENT_HEADER[accent]}`}>
+            <Icon className="w-4 h-4" />
+            {title}
+            <span className="text-slate-400 font-normal">({rows.length})</span>
+          </div>
+          <p className="text-xs text-slate-400 mt-0.5 ml-6">{description}</p>
         </div>
-        <p className="text-xs text-slate-400 mt-0.5 ml-6">{description}</p>
+        {onDownload && (
+          <button
+            onClick={onDownload}
+            disabled={rows.length === 0}
+            title="Download this section as a spreadsheet"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export
+          </button>
+        )}
       </div>
 
       {rows.length === 0 ? (

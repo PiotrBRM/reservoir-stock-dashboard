@@ -1,12 +1,13 @@
 // src/App.tsx
 import { useMemo, useState } from "react";
-import { AlertCircle, AlertTriangle, Archive, ArrowLeftRight, Boxes, FileDown, OctagonAlert, Trash2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, Archive, ArrowLeftRight, Boxes, FileDown, FileSpreadsheet, OctagonAlert, Trash2 } from "lucide-react";
 
-import type { CatalogueView, Thresholds } from "./types";
+import type { CatalogueView, ConsolidatedRow, Thresholds } from "./types";
 import { DEFAULT_THRESHOLDS, VIEW_LABEL_NAMES } from "./types";
 import { buildConsolidatedRows } from "./lib/consolidate";
 import { readCSVFile, readExcelFile } from "./lib/fileReaders";
 import { formatMoney, formatNumber } from "./lib/format";
+import { dateStamp, downloadSpreadsheet } from "./lib/excelExport";
 
 import FileDropzone from "./components/FileDropzone";
 import FileChip from "./components/FileChip";
@@ -113,41 +114,25 @@ export default function StockDashboard() {
 
   const downloadExcel = async () => {
     if (!viewRows.length) return;
-    const XLSX = await import("xlsx");
-    const exportRows = viewRows.map((r) => ({
-      Barcode: r.barcode,
-      "Catalog No": r.catalogNo,
-      Artist: r.artist,
-      Title: r.title,
-      "Release Date": r.releaseDate,
-      Format: r.format,
-      Status: r.status,
-      "Proper Stock": r.properStock,
-      "Proper Months Cover": r.properMonthsOfCover ?? "N/A",
-      "Proper On Order": r.properOnOrder,
-      "Proper Sales 3mo ago": r.properMonthlySales[2],
-      "Proper Sales 2mo ago": r.properMonthlySales[1],
-      "Proper Sales last mo": r.properMonthlySales[0],
-      "AMPED Stock": r.ampedStock,
-      "AMPED Months Cover": r.ampedMonthsOfCover ?? "N/A",
-      "AMPED On Order": r.ampedOnOrder,
-      "AMPED Avg Units/Week": r.ampedAvgMonthly ? Math.round((r.ampedAvgMonthly / 4.333) * 100) / 100 : 0,
-      "Combined Stock": r.combinedStock,
-      "Combined Units/Mo": r.combinedVelocity,
-      "Combined Months of Cover": r.monthsOfCover ?? "N/A",
-      "Unit Price (£)": r.unitPrice,
-      "Stock Value (£)": r.stockValue,
-      "Suggested Repress Qty": r.suggestedRepressQty ?? "",
-      "Excess Units": r.excessUnits ?? "",
-      "Excess Value (£)": r.excessValue ?? "",
-      "Rebalance Suggestion": r.regionFlag ?? "",
-      "Suggested Transfer Qty": r.suggestedTransferQty ?? "",
-    }));
-    const ws = XLSX.utils.json_to_sheet(exportRows);
-    ws["!cols"] = Object.keys(exportRows[0] || {}).map(() => ({ wch: 20 }));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Stock Health Report");
-    XLSX.writeFile(wb, `Stock_Health_Report_${VIEW_LABEL[view]}_${new Date().toISOString().split("T")[0]}.xlsx`);
+    await downloadSpreadsheet(`Stock_Health_Report_${VIEW_LABEL[view]}_${dateStamp()}.xlsx`, [
+      { name: "All Titles", rows: viewRows },
+    ]);
+  };
+
+  const downloadSection = async (sectionSlug: string, sectionName: string, rows: ConsolidatedRow[]) => {
+    await downloadSpreadsheet(`Stock_Health_Report_${VIEW_LABEL[view]}_${sectionSlug}_${dateStamp()}.xlsx`, [
+      { name: sectionName, rows },
+    ]);
+  };
+
+  const downloadFullSpreadsheetReport = async () => {
+    await downloadSpreadsheet(`Stock_Health_Report_${VIEW_LABEL[view]}_Full_${dateStamp()}.xlsx`, [
+      { name: "Needs Repress", rows: repressRows },
+      { name: "Rebalance Opportunities", rows: rebalanceRows },
+      { name: "Overstocked", rows: overstockRows },
+      { name: "Dormant", rows: dormantRows },
+      { name: "Deleted", rows: deletedRows },
+    ]);
   };
 
   const downloadReport = async () => {
@@ -246,6 +231,14 @@ export default function StockDashboard() {
               <div className="flex items-center gap-2">
                 <FileChip id="file1-chip" region="proper" accept=".csv" rowCount={source1Data.length} onFile={(f) => handleFile(f, 1)} />
                 <FileChip id="file2-chip" region="amped" accept=".xlsx,.xls" rowCount={source2Data.length} onFile={(f) => handleFile(f, 2)} />
+                <button
+                  onClick={downloadFullSpreadsheetReport}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  title="Download every section as a multi-tab spreadsheet"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  Download report (Excel)
+                </button>
                 <button
                   onClick={downloadReport}
                   disabled={generatingReport}
@@ -362,6 +355,7 @@ export default function StockDashboard() {
                 rows={repressRows}
                 thresholds={thresholds}
                 emptyMessage="Nothing urgent — every title has enough cover."
+                onDownload={() => downloadSection("Needs_Repress", "Needs Repress", repressRows)}
               />
               <AlertTable
                 title="Rebalance opportunities"
@@ -372,6 +366,7 @@ export default function StockDashboard() {
                 rows={rebalanceRows}
                 thresholds={thresholds}
                 emptyMessage="No cross-region imbalances detected."
+                onDownload={() => downloadSection("Rebalance", "Rebalance Opportunities", rebalanceRows)}
               />
               <AlertTable
                 title="Overstocked — review holding"
@@ -382,6 +377,7 @@ export default function StockDashboard() {
                 rows={overstockRows}
                 thresholds={thresholds}
                 emptyMessage="No titles are holding excess stock right now."
+                onDownload={() => downloadSection("Overstocked", "Overstocked", overstockRows)}
               />
               <AlertTable
                 title="Dormant — no recent sales"
@@ -393,6 +389,7 @@ export default function StockDashboard() {
                 thresholds={thresholds}
                 emptyMessage="No dormant stock."
                 defaultVisible={5}
+                onDownload={() => downloadSection("Dormant", "Dormant", dormantRows)}
               />
               <AlertTable
                 title="Deleted"
@@ -404,6 +401,7 @@ export default function StockDashboard() {
                 thresholds={thresholds}
                 emptyMessage="No deleted titles with remaining stock."
                 defaultVisible={5}
+                onDownload={() => downloadSection("Deleted", "Deleted", deletedRows)}
               />
             </section>
 
