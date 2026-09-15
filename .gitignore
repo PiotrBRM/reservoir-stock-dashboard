@@ -13,6 +13,11 @@ dist-ssr
 *.local
 .claude/
 
+# Real stock reports — kept locally for manual testing, never committed
+output-Basil-SupplierStockReport-*.csv
+Inventory Analysis.xlsx
+public/sample-data/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
