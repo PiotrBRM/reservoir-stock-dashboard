@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, AlertTriangle, Archive, ArrowLeftRight, Boxes, FileDown, FileSpreadsheet, OctagonAlert, Trash2 } from "lucide-react";
 
 import type { ConsolidatedRow, Thresholds } from "./types";
@@ -21,14 +21,30 @@ import DetailTable from "./components/DetailTable";
 /** Sanitizes a display label into a filename-safe slug (spaces → underscores, no special chars). */
 const slugify = (s: string) => s.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
+/** Reads ?team= from the URL so a team's link (e.g. shared with Reservoir US) opens straight into it. */
+function getInitialTeamId(): string {
+  if (typeof window === "undefined") return TEAMS[0].id;
+  const requested = new URLSearchParams(window.location.search).get("team");
+  return TEAMS.some((t) => t.id === requested) ? requested! : TEAMS[0].id;
+}
+
+/** Reads ?view= from the URL, but only honors it if that view actually exists on the resolved team. */
+function getInitialViewId(teamId: string): string {
+  if (typeof window === "undefined") return "combined";
+  const requested = new URLSearchParams(window.location.search).get("view");
+  if (requested === "combined") return "combined";
+  const team = TEAMS.find((t) => t.id === teamId);
+  return team?.views.some((v) => v.id === requested) ? requested! : "combined";
+}
+
 export default function StockDashboard() {
   const [source1Data, setSource1Data] = useState<any[]>([]); // Proper CSV — UK & ROW
   const [source2Data, setSource2Data] = useState<any[]>([]); // AMPED XLSX — NA
   const [properFileName, setProperFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [thresholds, setThresholds] = useState<Thresholds>(DEFAULT_THRESHOLDS);
-  const [teamId, setTeamId] = useState<string>(TEAMS[0].id);
-  const [viewId, setViewId] = useState<string>("combined");
+  const [teamId, setTeamId] = useState<string>(getInitialTeamId);
+  const [viewId, setViewId] = useState<string>(() => getInitialViewId(getInitialTeamId()));
   const [generatingReport, setGeneratingReport] = useState(false);
 
   const team = useMemo(() => TEAMS.find((t) => t.id === teamId) ?? TEAMS[0], [teamId]);
@@ -37,6 +53,15 @@ export default function StockDashboard() {
   const teamLabelNames = useMemo(() => team.views.flatMap((v) => v.labelNames), [team]);
   const currentView = team.views.find((v) => v.id === viewId);
   const currentViewLabel = viewId === "combined" || !currentView ? "Combined" : currentView.label;
+
+  // Keeps the address bar itself as the shareable link — copying it always
+  // reproduces the current team + view, no separate "share" button needed.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("team", teamId);
+    params.set("view", viewId);
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+  }, [teamId, viewId]);
 
   const changeTeam = (nextTeamId: string) => {
     setTeamId(nextTeamId);
