@@ -2,8 +2,8 @@
 import { useMemo, useState } from "react";
 import { AlertCircle, AlertTriangle, Archive, ArrowLeftRight, Boxes, FileDown, FileSpreadsheet, OctagonAlert, Trash2 } from "lucide-react";
 
-import type { CatalogueView, ConsolidatedRow, Thresholds } from "./types";
-import { DEFAULT_THRESHOLDS, VIEW_LABEL_NAMES } from "./types";
+import type { ConsolidatedRow, Thresholds } from "./types";
+import { DEFAULT_THRESHOLDS, TEAMS } from "./types";
 import { buildConsolidatedRows } from "./lib/consolidate";
 import { readCSVFile, readExcelFile } from "./lib/fileReaders";
 import { formatMoney, formatNumber } from "./lib/format";
@@ -18,11 +18,8 @@ import SettingsBar from "./components/SettingsBar";
 import AlertTable from "./components/AlertTable";
 import DetailTable from "./components/DetailTable";
 
-const VIEW_LABEL: Record<CatalogueView, string> = {
-  combined: "Combined",
-  frontline: "Frontline",
-  catalogue: "Catalogue",
-};
+/** Sanitizes a display label into a filename-safe slug (spaces → underscores, no special chars). */
+const slugify = (s: string) => s.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
 export default function StockDashboard() {
   const [source1Data, setSource1Data] = useState<any[]>([]); // Proper CSV — UK & ROW
@@ -30,8 +27,21 @@ export default function StockDashboard() {
   const [properFileName, setProperFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [thresholds, setThresholds] = useState<Thresholds>(DEFAULT_THRESHOLDS);
-  const [view, setView] = useState<CatalogueView>("combined");
+  const [teamId, setTeamId] = useState<string>(TEAMS[0].id);
+  const [viewId, setViewId] = useState<string>("combined");
   const [generatingReport, setGeneratingReport] = useState(false);
+
+  const team = useMemo(() => TEAMS.find((t) => t.id === teamId) ?? TEAMS[0], [teamId]);
+  // Every label the team's own tabs cover — "Combined" is just their union,
+  // computed here rather than hardcoded so it can never drift out of sync.
+  const teamLabelNames = useMemo(() => team.views.flatMap((v) => v.labelNames), [team]);
+  const currentView = team.views.find((v) => v.id === viewId);
+  const currentViewLabel = viewId === "combined" || !currentView ? "Combined" : currentView.label;
+
+  const changeTeam = (nextTeamId: string) => {
+    setTeamId(nextTeamId);
+    setViewId("combined"); // the previous view's id may not exist on the new team
+  };
 
   const handleFile = async (file: File | undefined, target: 1 | 2) => {
     if (!file) return;
@@ -62,20 +72,21 @@ export default function StockDashboard() {
 
   const hasResult = consolidated.length > 0;
 
-  const viewCounts = useMemo(
-    () => ({
-      combined: consolidated.length,
-      frontline: consolidated.filter((r) => VIEW_LABEL_NAMES.frontline.includes(r.labelName)).length,
-      catalogue: consolidated.filter((r) => VIEW_LABEL_NAMES.catalogue.includes(r.labelName)).length,
-    }),
-    [consolidated]
-  );
+  const viewCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      combined: consolidated.filter((r) => teamLabelNames.includes(r.labelName)).length,
+    };
+    for (const v of team.views) {
+      counts[v.id] = consolidated.filter((r) => v.labelNames.includes(r.labelName)).length;
+    }
+    return counts;
+  }, [consolidated, team, teamLabelNames]);
 
   // The active view scopes everything below it — KPIs, alerts, and the detail table.
   const viewRows = useMemo(() => {
-    if (view === "combined") return consolidated;
-    return consolidated.filter((r) => VIEW_LABEL_NAMES[view].includes(r.labelName));
-  }, [consolidated, view]);
+    const labelNames = viewId === "combined" ? teamLabelNames : currentView?.labelNames ?? [];
+    return consolidated.filter((r) => labelNames.includes(r.labelName));
+  }, [consolidated, viewId, teamLabelNames, currentView]);
 
   const kpis = useMemo(() => {
     const totalUnits = viewRows.reduce((sum, r) => sum + r.combinedStock, 0);
@@ -112,21 +123,23 @@ export default function StockDashboard() {
     [viewRows]
   );
 
+  const reportSlug = () => `${slugify(team.label)}_${slugify(currentViewLabel)}`;
+
   const downloadExcel = async () => {
     if (!viewRows.length) return;
-    await downloadSpreadsheet(`Stock_Health_Report_${VIEW_LABEL[view]}_${dateStamp()}.xlsx`, [
+    await downloadSpreadsheet(`Stock_Health_Report_${reportSlug()}_${dateStamp()}.xlsx`, [
       { name: "All Titles", rows: viewRows },
     ]);
   };
 
   const downloadSection = async (sectionSlug: string, sectionName: string, rows: ConsolidatedRow[]) => {
-    await downloadSpreadsheet(`Stock_Health_Report_${VIEW_LABEL[view]}_${sectionSlug}_${dateStamp()}.xlsx`, [
+    await downloadSpreadsheet(`Stock_Health_Report_${reportSlug()}_${sectionSlug}_${dateStamp()}.xlsx`, [
       { name: sectionName, rows },
     ]);
   };
 
   const downloadFullSpreadsheetReport = async () => {
-    await downloadSpreadsheet(`Stock_Health_Report_${VIEW_LABEL[view]}_Full_${dateStamp()}.xlsx`, [
+    await downloadSpreadsheet(`Stock_Health_Report_${reportSlug()}_Full_${dateStamp()}.xlsx`, [
       { name: "Needs Repress", rows: repressRows },
       { name: "Rebalance Opportunities", rows: rebalanceRows },
       { name: "Overstocked", rows: overstockRows },
@@ -146,7 +159,8 @@ export default function StockDashboard() {
       ]);
       const blob = await pdf(
         <ReportPdfDocument
-          view={view}
+          teamLabel={team.label}
+          viewLabel={currentViewLabel}
           generatedAt={new Date()}
           thresholds={thresholds}
           allRows={viewRows}
@@ -164,7 +178,7 @@ export default function StockDashboard() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Stock_Health_Report_${VIEW_LABEL[view]}_${new Date().toISOString().split("T")[0]}.pdf`;
+      a.download = `Stock_Health_Report_${reportSlug()}_${new Date().toISOString().split("T")[0]}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -303,19 +317,36 @@ export default function StockDashboard() {
 
         {hasResult && (
           <div className="flex flex-col gap-6">
-            <div className="inline-flex items-center gap-1 rounded-lg bg-slate-200/60 p-1 self-start">
-              {(Object.keys(VIEW_LABEL) as CatalogueView[]).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    view === v ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                  }`}
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                Team
+                <select
+                  value={teamId}
+                  onChange={(e) => changeTeam(e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white py-1.5 pl-3 pr-8 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-proper/30 focus:border-proper"
                 >
-                  {VIEW_LABEL[v]}
-                  <span className="ml-1.5 text-xs text-slate-400 tabular-nums">{viewCounts[v]}</span>
-                </button>
-              ))}
+                  {TEAMS.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="inline-flex items-center gap-1 rounded-lg bg-slate-200/60 p-1">
+                {[{ id: "combined", label: "Combined" }, ...team.views].map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => setViewId(v.id)}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      viewId === v.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    {v.label}
+                    <span className="ml-1.5 text-xs text-slate-400 tabular-nums">{viewCounts[v.id] ?? 0}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <PortfolioHealthBar rows={viewRows} />

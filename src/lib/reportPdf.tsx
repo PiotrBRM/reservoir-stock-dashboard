@@ -8,7 +8,7 @@
 // reasoning, Proper/AMPED breakdown), because the reader may never open the
 // tool itself.
 import { Circle, Document, Page, Rect, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
-import type { CatalogueView, ConsolidatedRow, StockStatus, Thresholds } from "../types";
+import type { ConsolidatedRow, StockStatus, Thresholds } from "../types";
 import { DELETION_TYPE_META } from "./deletionType";
 import { explainRow } from "./explain";
 import { formatMoney, formatNumber } from "./format";
@@ -42,12 +42,6 @@ const STATUS_META: Record<StockStatus, { label: string; color: string; bg: strin
   overstocked: { label: "Overstocked", color: COLOR.warning, bg: COLOR.warningSoft },
   dormant: { label: "Dormant", color: COLOR.inkMuted, bg: "#f1f5f9" },
   deleted: { label: "Deleted", color: COLOR.inkMuted, bg: "#f1f5f9" },
-};
-
-const VIEW_LABEL: Record<CatalogueView, string> = {
-  combined: "Combined",
-  frontline: "Frontline",
-  catalogue: "Catalogue",
 };
 
 const STATUS_ORDER: StockStatus[] = ["stockout", "critical", "overstocked", "dormant", "healthy", "deleted"];
@@ -254,7 +248,8 @@ function ReportSection({
 }
 
 interface ReportPdfProps {
-  view: CatalogueView;
+  teamLabel: string;
+  viewLabel: string;
   generatedAt: Date;
   thresholds: Thresholds;
   allRows: ConsolidatedRow[];
@@ -269,7 +264,8 @@ interface ReportPdfProps {
 }
 
 export function ReportPdfDocument({
-  view,
+  teamLabel,
+  viewLabel,
   generatedAt,
   thresholds,
   allRows,
@@ -293,7 +289,7 @@ export function ReportPdfDocument({
 
   const holdingCostNote =
     holdingCostTotal > 0 ? `an estimated ${formatMoney(holdingCostTotal)}/month to hold` : `${formatMoney(excessValueTotal)} tied up`;
-  const summary = `This ${VIEW_LABEL[view].toLowerCase()} snapshot covers ${formatNumber(
+  const summary = `This ${teamLabel} — ${viewLabel} snapshot covers ${formatNumber(
     allRows.length
   )} titles holding ${formatNumber(totalUnits)} combined units. ${formatNumber(
     repressRows.length
@@ -311,8 +307,12 @@ export function ReportPdfDocument({
           <Text style={styles.subtitle}>Reservoir — combined Proper &amp; AMPED sell-through</Text>
           <View style={styles.metaRow}>
             <Text style={styles.metaItem}>
+              <Text style={styles.metaLabel}>Team: </Text>
+              {teamLabel}
+            </Text>
+            <Text style={styles.metaItem}>
               <Text style={styles.metaLabel}>View: </Text>
-              {VIEW_LABEL[view]} ({formatNumber(allRows.length)} titles)
+              {viewLabel} ({formatNumber(allRows.length)} titles)
             </Text>
             <Text style={styles.metaItem}>
               <Text style={styles.metaLabel}>Generated: </Text>

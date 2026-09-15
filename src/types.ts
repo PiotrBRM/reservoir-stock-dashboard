@@ -2,13 +2,55 @@
 
 export type StockStatus = "stockout" | "critical" | "healthy" | "overstocked" | "dormant" | "deleted";
 
-export type CatalogueView = "combined" | "frontline" | "catalogue";
+/**
+ * One sub-tab within a team's view (e.g. "Frontline") and the Proper
+ * LabelName values that belong to it. A team's "Combined" tab isn't listed
+ * here — it's always the union of the team's own views, computed at
+ * runtime, so it never drifts out of sync with them.
+ */
+export interface TeamView {
+  id: string;
+  label: string;
+  labelNames: string[];
+}
 
-/** Proper LabelName values that define the Frontline / Catalogue split. */
-export const VIEW_LABEL_NAMES: Record<Exclude<CatalogueView, "combined">, string[]> = {
-  frontline: ["CHRYSALIS FRONTLINE", "IDAHO RECORDS"],
-  catalogue: ["CHRYSALIS RECORDS", "BUZZIN FLY RECORDS LTD", "TWO TONE RECORDS"],
-};
+/**
+ * A distinct group of people who use this tool, each with their own label
+ * taxonomy carved out of the same underlying Proper/AMPED upload — teams
+ * don't get separate file uploads, just a different filter on top.
+ */
+export interface Team {
+  id: string;
+  label: string;
+  views: TeamView[];
+}
+
+export const TEAMS: Team[] = [
+  {
+    id: "chrysalis",
+    label: "Chrysalis Records",
+    views: [
+      { id: "frontline", label: "Frontline", labelNames: ["CHRYSALIS FRONTLINE", "IDAHO RECORDS"] },
+      {
+        id: "catalogue",
+        label: "Catalogue",
+        labelNames: ["CHRYSALIS RECORDS", "BUZZIN FLY RECORDS LTD", "TWO TONE RECORDS"],
+      },
+    ],
+  },
+  {
+    id: "reservoir_us",
+    label: "Reservoir US",
+    views: [
+      // Placeholder tabs — real names and label lists to follow once decided.
+      { id: "view_1", label: "View 1", labelNames: [] },
+      { id: "view_2", label: "View 2", labelNames: [] },
+      { id: "view_3", label: "View 3", labelNames: [] },
+      { id: "view_4", label: "View 4", labelNames: [] },
+      { id: "view_5", label: "View 5", labelNames: [] },
+    ],
+  },
+];
 
 export interface Thresholds {
   /** Below this many months of cover, a title is flagged for repress. */
