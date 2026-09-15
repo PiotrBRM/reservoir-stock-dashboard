@@ -24,6 +24,7 @@ function toExportRow(r: ConsolidatedRow) {
     "AMPED Stock": r.ampedStock,
     "AMPED Months Cover": r.ampedMonthsOfCover ?? "N/A",
     "AMPED On Order": r.ampedOnOrder,
+    "AMPED Last PO Date": r.ampedLastPODate || "",
     "AMPED Avg Units/Week": r.ampedAvgMonthly ? Math.round((r.ampedAvgMonthly / 4.333) * 100) / 100 : 0,
     "Combined Stock": r.combinedStock,
     "Combined Units/Mo": r.combinedVelocity,

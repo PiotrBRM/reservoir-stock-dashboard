@@ -2,26 +2,11 @@
 import type { ConsolidatedRow, StockStatus, Thresholds } from "../types";
 
 // ============ EXCLUSION LISTS ============
-const EXCLUDED_LABELS = [
-  "FREE GOODS",
-  "TOMMY BOY RECORDS",
-  "PHILLY GROOVE RECORDS",
-  "AMHERST RECORDS",
-  "RASA MUSIC",
-  "RESERVOIR RECORDINGS",
-  "RAMBLIN RECORDS",
-  "RAMBLIN' RECORDS",
-  "DEF JAM",
-  "UNIVERSAL",
-  "WARNER",
-  // Out of scope for this tool — only Frontline/Catalogue labels are tracked,
-  // so Combined (which is just "every row this tool tracks") doesn't pick up
-  // titles under other imprints that neither view recognizes.
-  "NACIONAL",
-  "NEW STATE",
-  "PAINTED DESERT RECORDS",
-  "EASY STREET RECORDS",
-];
+// Genuinely out of scope for every team this tool tracks (not Chrysalis
+// Records, not Reservoir US) — mostly major-label licensed imprints. Labels
+// that belong to a team live in that team's TEAMS config in types.ts instead;
+// don't add a label here just because it doesn't have a tab yet.
+const EXCLUDED_LABELS = ["RAMBLIN RECORDS", "DEF JAM", "UNIVERSAL", "WARNER", "NEW STATE"];
 const EXCLUDED_ARTISTS = ["DE LA SOUL", "THE MARSHALL TUCKER BAND", "THE COOL KIDS"];
 // =========================================
 
@@ -209,6 +194,9 @@ export function buildConsolidatedRows(
       ? [8, 7, 6, 5, 4, 3, 2, 1].map((n) => getNumericValue(ampedMatch[`Wk${n}`] ?? ampedMatch[`Wk${n} `] ?? 0))
       : [];
     const ampedOnOrder = ampedMatch ? getNumericValue(ampedMatch.QOO) : 0;
+    // Last time AMPED shipped a PO for this title — Reservoir US's own signal
+    // for whether a repress is already in flight, not something Proper tracks.
+    const ampedLastPODate = ampedMatch ? String(ampedMatch["Last PODate"] || "").trim() : "";
     const properOnOrder = getNumericValue(row.OnOrder);
 
     // Proper: 3-month average monthly sales
@@ -380,6 +368,7 @@ export function buildConsolidatedRows(
       properOnOrder,
       ampedWeeklySales,
       ampedOnOrder,
+      ampedLastPODate,
       deletionType,
       deletedDate,
     });

@@ -43,7 +43,16 @@ function Sparkline({ values }: { values: number[] }) {
 }
 
 /** The recommendation + why behind a title's status. Rendered inline inside an expanded table row. */
-export default function ReleaseDetailPanel({ row, thresholds }: { row: ConsolidatedRow; thresholds: Thresholds }) {
+export default function ReleaseDetailPanel({
+  row,
+  thresholds,
+  showLastPODate = false,
+}: {
+  row: ConsolidatedRow;
+  thresholds: Thresholds;
+  /** Reservoir US only — AMPED's own repress signal, meaningless for Chrysalis. */
+  showLastPODate?: boolean;
+}) {
   const { recommendation, reasoning } = explainRow(row, thresholds);
 
   return (
@@ -84,6 +93,9 @@ export default function ReleaseDetailPanel({ row, thresholds }: { row: Consolida
               />
               {row.ampedOnOrder > 0 && (
                 <div className="text-xs text-slate-500 mt-1.5">+{formatNumber(row.ampedOnOrder)} on order</div>
+              )}
+              {showLastPODate && (
+                <div className="text-xs text-slate-500 mt-1.5">Last PO: {row.ampedLastPODate || "—"}</div>
               )}
             </>
           ) : (

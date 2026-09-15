@@ -25,6 +25,8 @@ interface AlertTableProps {
   defaultVisible?: number;
   /** When provided, shows a button in the section header that exports just this section as a spreadsheet. */
   onDownload?: () => void;
+  /** Reservoir US only — AMPED's own repress signal, meaningless for Chrysalis titles Proper doesn't track this way for. */
+  showLastPODate?: boolean;
 }
 
 const ACCENT_HEADER: Record<AlertTableProps["accent"], string> = {
@@ -47,6 +49,7 @@ export default function AlertTable({
   emptyMessage,
   defaultVisible = 6,
   onDownload,
+  showLastPODate = false,
 }: AlertTableProps) {
   const [showAll, setShowAll] = useState(false);
   const [openRows, setOpenRows] = useState<Set<string>>(new Set());
@@ -62,6 +65,12 @@ export default function AlertTable({
     });
   };
 
+  // Last PO (AMPED) is Reservoir US's own repress-timing signal — relevant
+  // wherever a recent repress could explain the numbers: the repress table
+  // itself, plus overstock/dormant (both can be false positives right after
+  // a fresh repress lands).
+  const showsLastPODateColumn = showLastPODate && (variant === "repress" || variant === "overstock" || variant === "dormant");
+
   const colCount =
     4 + // Status, Release, Format, Proper/AMPED bars
     (variant !== "dormant" && variant !== "deleted" ? 1 : 0) + // Combined cover
@@ -74,6 +83,7 @@ export default function AlertTable({
       : variant === "deleted"
       ? 2
       : 0) +
+    (showsLastPODateColumn ? 1 : 0) +
     1; // chevron
 
   return (
@@ -134,6 +144,7 @@ export default function AlertTable({
                       <th className="px-4 py-2 text-right font-medium">Units remaining</th>
                     </>
                   )}
+                  {showsLastPODateColumn && <th className="px-4 py-2 text-left font-medium">Last PO (AMPED)</th>}
                   <th className="w-8" />
                 </tr>
               </thead>
@@ -231,6 +242,9 @@ export default function AlertTable({
                             </td>
                           </>
                         )}
+                        {showsLastPODateColumn && (
+                          <td className="px-4 py-2 text-slate-600">{r.ampedLastPODate || "—"}</td>
+                        )}
                         <td className="px-2 py-2 text-slate-300">
                           <ChevronRight className={`w-4 h-4 transition-transform ${open ? "rotate-90" : ""}`} />
                         </td>
@@ -238,7 +252,7 @@ export default function AlertTable({
                       {open && (
                         <tr key={`${key}-detail`}>
                           <td colSpan={colCount} className="p-0 border-t border-b border-slate-100">
-                            <ReleaseDetailPanel row={r} thresholds={thresholds} />
+                            <ReleaseDetailPanel row={r} thresholds={thresholds} showLastPODate={showLastPODate} />
                           </td>
                         </tr>
                       )}

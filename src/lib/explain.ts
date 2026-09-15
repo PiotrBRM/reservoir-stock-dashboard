@@ -20,6 +20,29 @@ function repressSplitPhrase(r: ConsolidatedRow): string {
   return "";
 }
 
+/** Parses AMPED's "Last PODate" (MM/DD/YYYY). Returns null if blank or unparseable. */
+function parseLastPODate(s: string): Date | null {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s.trim());
+  if (!m) return null;
+  const [, mm, dd, yyyy] = m;
+  const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+const AVG_DAYS_PER_MONTH = 30.44;
+
+/**
+ * Whether AMPED shipped a repress recently enough that today's numbers might
+ * just reflect that landing, not a genuine overstock/dormant read — Reservoir
+ * US only has this signal at all, since it comes from AMPED's own PO history.
+ */
+function shippedWithin(r: ConsolidatedRow, months: number): boolean {
+  const date = r.ampedLastPODate ? parseLastPODate(r.ampedLastPODate) : null;
+  if (!date) return false;
+  const monthsAgo = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24 * AVG_DAYS_PER_MONTH);
+  return monthsAgo >= 0 && monthsAgo <= months;
+}
+
 export function explainRow(r: ConsolidatedRow, t: Thresholds): Explanation {
   const velocity = r.combinedVelocity.toFixed(1);
   const cover = (r.monthsOfCover ?? 0).toFixed(1);
@@ -79,6 +102,12 @@ export function explainRow(r: ConsolidatedRow, t: Thresholds): Explanation {
       reasoning = `Selling about ${velocity} units a month combined, the ${formatNumber(
         r.combinedStock
       )} units in stock cover roughly ${cover} months — comfortably inside your ${t.lowMonths}–${t.highMonths} month target window.`;
+  }
+
+  if (r.status === "overstocked" && shippedWithin(r, t.restockTargetMonths)) {
+    reasoning += ` Worth noting: a repress shipped as recently as ${r.ampedLastPODate} — the high cover here may just reflect that fresh stock landing, not genuine overstock.`;
+  } else if (r.status === "dormant" && shippedWithin(r, t.restockTargetMonths)) {
+    reasoning += ` Worth noting: a repress shipped as recently as ${r.ampedLastPODate} — there may not have been enough time yet for sales to show up.`;
   }
 
   const isRepress = recommendation.startsWith("Repress");

@@ -5,6 +5,13 @@ import type { ConsolidatedRow } from "../types";
 
 const T = DEFAULT_THRESHOLDS;
 
+/** Builds an AMPED-style MM/DD/YYYY date string N months before today, for recency tests. */
+function monthsAgo(months: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - months);
+  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+}
+
 function row(overrides: Partial<ConsolidatedRow> = {}): ConsolidatedRow {
   return {
     barcode: "123",
@@ -41,6 +48,7 @@ function row(overrides: Partial<ConsolidatedRow> = {}): ConsolidatedRow {
     properOnOrder: 0,
     ampedWeeklySales: [],
     ampedOnOrder: 0,
+    ampedLastPODate: "",
     deletionType: null,
     deletedDate: "",
     ...overrides,
@@ -116,6 +124,36 @@ describe("explainRow", () => {
       T
     );
     expect(properOnly.recommendation).toBe("Repress 120 units (all to Proper)");
+  });
+
+  it("flags overstocked as possibly a fresh repress, not genuine excess, when AMPED shipped within the restock target window", () => {
+    const recent = explainRow(
+      row({ status: "overstocked", combinedVelocity: 5, combinedStock: 100, excessUnits: 70, ampedLastPODate: monthsAgo(1) }),
+      T
+    );
+    expect(recent.reasoning).toMatch(/Worth noting: a repress shipped as recently as/);
+    expect(recent.reasoning).toMatch(/not genuine overstock/);
+
+    const stale = explainRow(
+      row({ status: "overstocked", combinedVelocity: 5, combinedStock: 100, excessUnits: 70, ampedLastPODate: monthsAgo(12) }),
+      T
+    );
+    expect(stale.reasoning).not.toMatch(/Worth noting/);
+
+    const none = explainRow(
+      row({ status: "overstocked", combinedVelocity: 5, combinedStock: 100, excessUnits: 70 }),
+      T
+    );
+    expect(none.reasoning).not.toMatch(/Worth noting/);
+  });
+
+  it("flags dormant as possibly too-new-to-tell, not genuinely dead, when AMPED shipped recently", () => {
+    const recent = explainRow(row({ status: "dormant", combinedVelocity: 0, ampedLastPODate: monthsAgo(2) }), T);
+    expect(recent.reasoning).toMatch(/Worth noting: a repress shipped as recently as/);
+    expect(recent.reasoning).toMatch(/not have been enough time yet for sales to show up/);
+
+    const stale = explainRow(row({ status: "dormant", combinedVelocity: 0, ampedLastPODate: monthsAgo(24) }), T);
+    expect(stale.reasoning).not.toMatch(/Worth noting/);
   });
 
   it("distinguishes low-volume dormant from genuinely no-sales dormant", () => {

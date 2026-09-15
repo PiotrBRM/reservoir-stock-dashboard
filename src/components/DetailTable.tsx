@@ -26,7 +26,7 @@ const GROUP_META: Record<Group, { label: string; className: string }> = {
   value: { label: "Value", className: "bg-slate-50 text-slate-500" },
 };
 
-const COLUMNS: Column[] = [
+const BASE_COLUMNS: Column[] = [
   {
     key: "status",
     label: "Status",
@@ -115,26 +115,44 @@ const COLUMNS: Column[] = [
   },
 ];
 
+// Reservoir US only — inserted into the AMPED column group, not part of the
+// base set, since Proper doesn't track this and it's meaningless for Chrysalis.
+const LAST_PO_COLUMN: Column = {
+  key: "ampedLastPODate",
+  label: "Last PO",
+  group: "amped",
+  render: (r) => r.ampedLastPODate || "—",
+  sortValue: (r) => r.ampedLastPODate,
+};
+
 // Contiguous runs of the same group, used to render the spanning group header row.
-const GROUP_RUNS: { group: Group; span: number }[] = (() => {
+function buildGroupRuns(columns: Column[]): { group: Group; span: number }[] {
   const runs: { group: Group; span: number }[] = [];
-  for (const col of COLUMNS) {
+  for (const col of columns) {
     const last = runs[runs.length - 1];
     if (last && last.group === col.group) last.span += 1;
     else runs.push({ group: col.group, span: 1 });
   }
   return runs;
-})();
+}
 
 interface DetailTableProps {
   rows: ConsolidatedRow[];
   thresholds: Thresholds;
   onDownload: () => void;
+  /** Reservoir US only — adds the "Last PO (AMPED)" column to the AMPED group. */
+  showLastPODate?: boolean;
 }
 
 const rowKey = (r: ConsolidatedRow) => `${r.barcode}|${r.catalogNo}`;
 
-export default function DetailTable({ rows, thresholds, onDownload }: DetailTableProps) {
+export default function DetailTable({ rows, thresholds, onDownload, showLastPODate = false }: DetailTableProps) {
+  const columns = useMemo(() => {
+    if (!showLastPODate) return BASE_COLUMNS;
+    const insertAfter = BASE_COLUMNS.findIndex((c) => c.key === "ampedMonthsOfCover");
+    return [...BASE_COLUMNS.slice(0, insertAfter + 1), LAST_PO_COLUMN, ...BASE_COLUMNS.slice(insertAfter + 1)];
+  }, [showLastPODate]);
+  const groupRuns = useMemo(() => buildGroupRuns(columns), [columns]);
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<Column["key"]>("combinedStock");
   const [sortDir, setSortDir] = useState<1 | -1>(-1);
@@ -155,7 +173,10 @@ export default function DetailTable({ rows, thresholds, onDownload }: DetailTabl
       ? rows
       : rows.filter((r) => `${r.artist} ${r.title} ${r.catalogNo} ${r.barcode} ${r.format}`.toLowerCase().includes(q));
 
-    const col = COLUMNS.find((c) => c.key === sortKey)!;
+    // sortKey can point at a column that no longer exists after switching
+    // teams mid-sort (e.g. sorted by Reservoir US's Last PO, then switched to
+    // Chrysalis) — fall back to the default rather than crashing.
+    const col = columns.find((c) => c.key === sortKey) ?? columns.find((c) => c.key === "combinedStock")!;
     return [...base].sort((a, b) => {
       const av = col.sortValue(a);
       const bv = col.sortValue(b);
@@ -164,7 +185,7 @@ export default function DetailTable({ rows, thresholds, onDownload }: DetailTabl
       }
       return ((av as number) - (bv as number)) * sortDir;
     });
-  }, [rows, query, sortKey, sortDir]);
+  }, [rows, query, sortKey, sortDir, columns]);
 
   const toggleSort = (key: Column["key"]) => {
     if (key === sortKey) {
@@ -202,7 +223,7 @@ export default function DetailTable({ rows, thresholds, onDownload }: DetailTabl
         <table className="min-w-full text-sm table-auto border-collapse">
           <thead className="sticky top-0 z-10">
             <tr>
-              {GROUP_RUNS.map((run, i) => (
+              {groupRuns.map((run, i) => (
                 <th
                   key={i}
                   colSpan={run.span}
@@ -214,7 +235,7 @@ export default function DetailTable({ rows, thresholds, onDownload }: DetailTabl
               <th className="w-8 border-b border-slate-100 bg-slate-50" />
             </tr>
             <tr className="bg-slate-50">
-              {COLUMNS.map((col, i) => (
+              {columns.map((col, i) => (
                 <th
                   key={i}
                   onClick={() => toggleSort(col.key)}
@@ -251,7 +272,7 @@ export default function DetailTable({ rows, thresholds, onDownload }: DetailTabl
                       open ? "bg-slate-100/80" : i % 2 ? "bg-slate-50/60" : "bg-white"
                     }`}
                   >
-                    {COLUMNS.map((col, ci) => (
+                    {columns.map((col, ci) => (
                       <td
                         key={ci}
                         className={`px-3 py-2 whitespace-nowrap ${col.align === "right" ? "text-right" : "text-left"}`}
@@ -265,8 +286,8 @@ export default function DetailTable({ rows, thresholds, onDownload }: DetailTabl
                   </tr>
                   {open && (
                     <tr>
-                      <td colSpan={COLUMNS.length + 1} className="p-0 border-t border-b border-slate-100">
-                        <ReleaseDetailPanel row={r} thresholds={thresholds} />
+                      <td colSpan={columns.length + 1} className="p-0 border-t border-b border-slate-100">
+                        <ReleaseDetailPanel row={r} thresholds={thresholds} showLastPODate={showLastPODate} />
                       </td>
                     </tr>
                   )}

@@ -81,13 +81,28 @@ describe("buildConsolidatedRows — filtering", () => {
     expect(rows).toHaveLength(0);
   });
 
-  it.each(["NACIONAL", "NEW STATE", "PAINTED DESERT RECORDS", "EASY STREET RECORDS", "RAMBLIN' RECORDS"])(
-    "excludes label %s — out of scope since it's neither Frontline nor Catalogue, so Combined stays exactly their union",
-    (label) => {
-      const rows = buildConsolidatedRows([properRow({ LabelName: label })], [ampedRow()], T);
-      expect(rows).toHaveLength(0);
-    }
-  );
+  it("excludes NEW STATE — genuinely out of scope, not owned by any team", () => {
+    const rows = buildConsolidatedRows([properRow({ LabelName: "NEW STATE" })], [ampedRow()], T);
+    expect(rows).toHaveLength(0);
+  });
+
+  it.each([
+    "TOMMY BOY RECORDS",
+    "AMHERST RECORDS",
+    "RESERVOIR RECORDINGS",
+    "RAMBLIN' RECORDS",
+    "EASY STREET RECORDS",
+    "FOOL'S GOLD",
+    "FREE GOODS",
+    "NACIONAL",
+    "PAINTED DESERT RECORDS",
+    "PHILLY GROOVE RECORDS",
+    "RASA MUSIC",
+  ])("keeps Reservoir US label %s — no longer globally excluded now that a team owns it", (label) => {
+    const rows = buildConsolidatedRows([properRow({ LabelName: label })], [ampedRow()], T);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].labelName).toBe(label);
+  });
 
   it("does not hide a title just because its name contains the word DELETED — only DeletionType decides that", () => {
     const rows = buildConsolidatedRows([properRow({ Title: "DELETED - TEST TITLE" })], [ampedRow()], T);
@@ -161,6 +176,21 @@ describe("buildConsolidatedRows — AMPED match tracking", () => {
     );
     expect(rows).toHaveLength(1);
     expect(rows[0].ampedStock).toBe(0);
+  });
+
+  it("carries AMPED's Last PODate through as the repress-in-flight signal", () => {
+    const rows = buildConsolidatedRows([properRow()], [ampedRow({ "Last PODate": "08/21/2026" })], T);
+    expect(rows[0].ampedLastPODate).toBe("08/21/2026");
+  });
+
+  it("leaves ampedLastPODate blank when there's no AMPED match at all", () => {
+    const rows = buildConsolidatedRows(
+      [properRow({ barcode_apostrophe: "'9999999999999", CatNo: "NOMATCH", Artist: "NOBODY", Title: "NOBODY" })],
+      [ampedRow({ "Last PODate": "08/21/2026" })], // unrelated row, won't match
+      T
+    );
+    expect(rows[0].ampedMatched).toBe(false);
+    expect(rows[0].ampedLastPODate).toBe("");
   });
 });
 

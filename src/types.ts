@@ -42,12 +42,17 @@ export const TEAMS: Team[] = [
     id: "reservoir_us",
     label: "Reservoir US",
     views: [
-      // Placeholder tabs — real names and label lists to follow once decided.
-      { id: "view_1", label: "View 1", labelNames: [] },
-      { id: "view_2", label: "View 2", labelNames: [] },
-      { id: "view_3", label: "View 3", labelNames: [] },
-      { id: "view_4", label: "View 4", labelNames: [] },
-      { id: "view_5", label: "View 5", labelNames: [] },
+      { id: "tommy_boy_records", label: "Tommy Boy Records", labelNames: ["TOMMY BOY RECORDS"] },
+      { id: "amherst_records", label: "Amherst Records", labelNames: ["AMHERST RECORDS"] },
+      { id: "reservoir_recordings", label: "Reservoir Recordings", labelNames: ["RESERVOIR RECORDINGS"] },
+      { id: "ramblin_records", label: "Ramblin' Records", labelNames: ["RAMBLIN' RECORDS"] },
+      { id: "easy_street_records", label: "Easy Street Records", labelNames: ["EASY STREET RECORDS"] },
+      { id: "fools_gold", label: "Fool's Gold", labelNames: ["FOOL'S GOLD"] },
+      { id: "free_goods", label: "Free Goods", labelNames: ["FREE GOODS"] },
+      { id: "nacional", label: "Nacional", labelNames: ["NACIONAL"] },
+      { id: "painted_desert_records", label: "Painted Desert Records", labelNames: ["PAINTED DESERT RECORDS"] },
+      { id: "philly_groove_records", label: "Philly Groove Records", labelNames: ["PHILLY GROOVE RECORDS"] },
+      { id: "rasa_music", label: "Rasa Music", labelNames: ["RASA MUSIC"] },
     ],
   },
 ];
@@ -137,6 +142,8 @@ export interface ConsolidatedRow {
   /** Last 8 weeks at AMPED, oldest first. */
   ampedWeeklySales: number[];
   ampedOnOrder: number;
+  /** AMPED's "Last PODate" — the last time a repress actually shipped. Empty string if unknown/no AMPED match. */
+  ampedLastPODate: string;
 
   /**
    * Proper's DeletionType code (1-4), or null if this title isn't deleted.

@@ -412,6 +412,7 @@ export default function StockDashboard() {
                 thresholds={thresholds}
                 emptyMessage="Nothing urgent — every title has enough cover."
                 onDownload={() => downloadSection("Needs_Repress", "Needs Repress", repressRows)}
+                showLastPODate={team.id === "reservoir_us"}
               />
               <AlertTable
                 title="Rebalance opportunities"
@@ -434,6 +435,7 @@ export default function StockDashboard() {
                 thresholds={thresholds}
                 emptyMessage="No titles are holding excess stock right now."
                 onDownload={() => downloadSection("Overstocked", "Overstocked", overstockRows)}
+                showLastPODate={team.id === "reservoir_us"}
               />
               <AlertTable
                 title="Dormant — no recent sales"
@@ -446,6 +448,7 @@ export default function StockDashboard() {
                 emptyMessage="No dormant stock."
                 defaultVisible={5}
                 onDownload={() => downloadSection("Dormant", "Dormant", dormantRows)}
+                showLastPODate={team.id === "reservoir_us"}
               />
               <AlertTable
                 title="Deleted"
@@ -465,6 +468,7 @@ export default function StockDashboard() {
               rows={viewRows}
               thresholds={thresholds}
               onDownload={downloadExcel}
+              showLastPODate={team.id === "reservoir_us"}
             />
           </div>
         )}
